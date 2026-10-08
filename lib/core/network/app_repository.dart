@@ -2,6 +2,10 @@ import 'dart:async';
 import '../../shared/models/models.dart';
 import '../../shared/models/dummy_data.dart';
 
+import '../constants/api_constants.dart';
+import '../services/api_service.dart';
+import '../utils/logger.dart';
+
 abstract class AppRepository {
   Future<List<FoodItem>> getFoodItems();
   Future<List<Category>> getCategories();
@@ -23,7 +27,34 @@ class MockAppRepository implements AppRepository {
 
   @override
   Future<List<Category>> getCategories() async {
-    await _delay();
+    try {
+      final response = await ApiService.dio.get(ApiConstants.categories);
+      if (response.data is Map<String, dynamic>) {
+        final data = response.data as Map<String, dynamic>;
+        final list = data['categories'] ?? data['data'];
+        if (list is List && list.isNotEmpty) {
+          final categories = list
+              .whereType<Map<String, dynamic>>()
+              .map((c) => Category.fromJson(c))
+              .toList();
+          if (categories.isNotEmpty) {
+            appLog("✅ Loaded ${categories.length} categories from backend");
+            return categories;
+          }
+        }
+      } else if (response.data is List) {
+        final categories = (response.data as List)
+            .whereType<Map<String, dynamic>>()
+            .map((c) => Category.fromJson(c))
+            .toList();
+        if (categories.isNotEmpty) {
+          appLog("✅ Loaded ${categories.length} categories from backend");
+          return categories;
+        }
+      }
+    } catch (e) {
+      appLog("ℹ️ Categories API notice: $e. Using local categories.");
+    }
     return DummyData.categories;
   }
 

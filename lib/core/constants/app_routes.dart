@@ -30,5 +30,18 @@ class AppRoutes {
   static const String subscriptionCalendar = '/subscription-calendar';
   static const String support = '/support';
   static const String ticketDetail = '/ticket-detail';
+  static const String myReviews = '/my-reviews';
   static const String settings = '/settings';
+  static const String notifications = '/notifications';
+  static const String subscriptionCheckout = '/subscription-checkout';
+  static const String noInternet = '/no-internet';
+  static const String forceUpdate = '/force-update';
+  static const String maintenance = '/maintenance';
+  static const String rateLimit = '/rate-limit';
+  static const String security = '/security';
+  static const String enableGps = '/enable-gps';
+  static const String terms = '/terms';
+  static const String privacy = '/privacy';
+  static const String refund = '/refund';
+  static const String whatsNew = '/whats-new';
 }

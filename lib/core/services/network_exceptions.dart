@@ -28,10 +28,17 @@ class NetworkExceptions {
         default:
           return "Server error: $statusCode";
       }
+    } else if (error.type == DioExceptionType.connectionError) {
+      return "Unable to connect to server. Please check your internet connection.";
+    } else if (error.type == DioExceptionType.badCertificate) {
+      return "Security certificate error. Please check your network.";
     } else if (error.type == DioExceptionType.cancel) {
       return "Request was cancelled";
     } else {
-      return "Unexpected error occurred";
+      if (error.message != null && error.message!.isNotEmpty) {
+        return error.message!;
+      }
+      return "Network error occurred. Please check your connection.";
     }
   }
 }

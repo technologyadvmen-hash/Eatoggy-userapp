@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import '../constants/api_constants.dart';
 import '../constants/app_keys.dart';
@@ -10,8 +11,8 @@ class ApiService {
       Dio(
           BaseOptions(
             // baseUrl: ApiConstants.baseUrl,
-            connectTimeout: const Duration(seconds: 15),
-            receiveTimeout: const Duration(seconds: 15),
+            connectTimeout: const Duration(seconds: 30),
+            receiveTimeout: const Duration(seconds: 30),
             headers: {
               "Accept": "application/json",
               "Content-Type": "application/json",
@@ -21,6 +22,12 @@ class ApiService {
         ..interceptors.add(
           InterceptorsWrapper(
             onRequest: (options, handler) async {
+              if (kIsWeb && (options.path.startsWith('https://api.eatoggy.in') || options.path.startsWith('https://dash-eatoggy-backend.onrender.com') || options.path.startsWith(ApiConstants.serverUrl))) {
+                options.path = options.path
+                    .replaceFirst('https://api.eatoggy.in', '')
+                    .replaceFirst('https://dash-eatoggy-backend.onrender.com', '')
+                    .replaceFirst(ApiConstants.serverUrl, '');
+              }
               final startTime = DateTime.now();
               options.extra['startTime'] = startTime;
               // Load token from SharedPreferences
@@ -88,22 +95,39 @@ class ApiService {
                 );
               }
               if (e.response?.statusCode == 401) {
-                if (e.requestOptions.path.contains('/customer/auth/refresh-token')) {
+                final path = e.requestOptions.path;
+                // Exclude operations where 401 should simply fail gracefully rather than force-logout
+                if (path.contains('/cancel') ||
+                    path.contains('/tracking') ||
+                    path.contains('/offers') ||
+                    path.contains('/serviceability') ||
+                    path.contains('/public')) {
+                  return handler.next(e);
+                }
+
+                if (path.contains('refresh-token')) {
                   appLog("🚨 Refresh token endpoint returned 401 - forcing logout");
                   await SessionManager.forceLogout();
                   return handler.next(e);
                 }
 
                 final prefs = await SharedPreferencesService.getInstance();
+                final storedAccessToken = prefs.getString(AppKeys.accessToken);
                 final storedRefreshToken = prefs.getString(AppKeys.refreshToken);
+
+                // If user has no access token, force logout to login screen (locked guest browsing)
+                if (storedAccessToken == null || storedAccessToken.isEmpty) {
+                  await SessionManager.forceLogout();
+                  return handler.next(e);
+                }
 
                 if (storedRefreshToken != null && storedRefreshToken.isNotEmpty) {
                   appLog("🔄 401 Unauthorized received. Attempting token refresh...");
                   try {
                     final refreshDio = Dio(
                       BaseOptions(
-                        connectTimeout: const Duration(seconds: 15),
-                        receiveTimeout: const Duration(seconds: 15),
+                        connectTimeout: const Duration(seconds: 10),
+                        receiveTimeout: const Duration(seconds: 10),
                         headers: {
                           "Accept": "application/json",
                           "Content-Type": "application/json",
@@ -135,8 +159,10 @@ class ApiService {
                   }
                 }
 
-                appLog("🚨 401 Unauthorized & refresh token unavailable/expired - forcing logout");
-                await SessionManager.forceLogout();
+                if (path.contains('/customer-auth/me') || path.contains('/checkout/initiate')) {
+                  appLog("🚨 401 Unauthorized & refresh token unavailable - forcing logout");
+                  await SessionManager.forceLogout();
+                }
                 return handler.next(e);
               }
 
@@ -151,8 +177,8 @@ class ApiService {
                   appLog("🔁 Retrying request once due to timeout...");
                   final retryOptions = e.requestOptions;
                   // Optional: Increase timeout for retry
-                  retryOptions.connectTimeout = const Duration(seconds: 30);
-                  retryOptions.receiveTimeout = const Duration(seconds: 30);
+                  retryOptions.connectTimeout = const Duration(seconds: 45);
+                  retryOptions.receiveTimeout = const Duration(seconds: 45);
 
                   final response = await dio.fetch(retryOptions);
                   appLog(

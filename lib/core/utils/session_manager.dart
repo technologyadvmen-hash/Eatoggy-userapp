@@ -1,3 +1,4 @@
+import '../constants/app_keys.dart';
 import '../constants/app_routes.dart';
 import '../router/app_router.dart';
 import '../services/storage_service.dart';
@@ -15,13 +16,19 @@ class SessionManager {
 
     try {
       final prefs = await SharedPreferencesService.getInstance();
-      await prefs.clear();
+      await prefs.remove(AppKeys.accessToken);
+      await prefs.remove(AppKeys.refreshToken);
+      await prefs.remove(AppKeys.user);
     } catch (e) {
-      appLog("Error clearing prefs on force logout: $e");
+      appLog("Error clearing auth tokens on force logout: $e");
     } finally {
       _isLoggingOut = false;
     }
 
-    AppRouter.router.go(AppRoutes.login);
+    try {
+      AppRouter.router.go(AppRoutes.login);
+    } catch (e) {
+      appLog("Router navigation notice on force logout: $e");
+    }
   }
 }
