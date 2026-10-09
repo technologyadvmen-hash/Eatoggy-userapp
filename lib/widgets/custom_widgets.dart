@@ -2,65 +2,37 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/theme/app_colors.dart';
 import '../core/constants/app_constants.dart';
+import 'speed_animated_button.dart';
+
+export 'speed_animated_button.dart';
 
 class PrimaryGoldButton extends StatelessWidget {
   final String text;
   final VoidCallback? onPressed;
   final bool isLoading;
+  final double height;
+  final Color? backgroundColor;
+  final Color? textColor;
 
   const PrimaryGoldButton({
     super.key,
     required this.text,
     this.onPressed,
     this.isLoading = false,
+    this.height = 56,
+    this.backgroundColor,
+    this.textColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      width: double.infinity,
-      height: 56,
-      decoration: BoxDecoration(
-        gradient: onPressed != null ? AppColors.goldGradient : null,
-        color: onPressed == null ? AppColors.muted : null,
-        borderRadius: BorderRadius.circular(AppConstants.radiusButton),
-        boxShadow: onPressed != null
-            ? [
-                BoxShadow(
-                  color: AppColors.primaryGold.withOpacity(0.3),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                )
-              ]
-            : null,
-      ),
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppConstants.radiusButton),
-          ),
-        ),
-        onPressed: isLoading ? null : onPressed,
-        child: isLoading
-            ? const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  color: AppColors.background,
-                  strokeWidth: 2.5,
-                ),
-              )
-            : Text(
-                text,
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: AppColors.background,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-      ),
+    return SpeedAnimatedButton(
+      text: text,
+      onPressed: onPressed,
+      isLoading: isLoading,
+      height: height,
+      backgroundColor: backgroundColor,
+      textColor: textColor,
     );
   }
 }
@@ -109,8 +81,8 @@ class OutlineButtonWidget extends StatelessWidget {
     final theme = Theme.of(context);
     return OutlinedButton(
       style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primaryGold,
-        side: const BorderSide(color: AppColors.primaryGold),
+        foregroundColor: AppColors.primary,
+        side: const BorderSide(color: AppColors.primary),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppConstants.radiusButton),
         ),
@@ -119,7 +91,7 @@ class OutlineButtonWidget extends StatelessWidget {
       onPressed: onPressed,
       child: Text(
         text,
-        style: theme.textTheme.labelLarge?.copyWith(color: AppColors.primaryGold),
+        style: theme.textTheme.labelLarge?.copyWith(color: AppColors.primary),
       ),
     );
   }
@@ -191,7 +163,7 @@ class AppTextField extends StatelessWidget {
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
               borderSide:
-                  const BorderSide(color: AppColors.primaryGold, width: 1.5),
+                  const BorderSide(color: AppColors.primary, width: 1.5),
             ),
           ),
         ),
