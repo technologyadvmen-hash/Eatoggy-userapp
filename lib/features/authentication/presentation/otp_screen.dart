@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -20,15 +21,120 @@ class OtpScreen extends StatefulWidget {
   State<OtpScreen> createState() => _OtpScreenState();
 }
 
-class _OtpScreenState extends State<OtpScreen> {
+class _OtpScreenState extends State<OtpScreen>
+    with TickerProviderStateMixin {
   final TextEditingController _otpController = TextEditingController();
   Timer? _timer;
   int _secondsRemaining = 45;
+  int _prevLength = 0;
+
+  late final AnimationController _entranceController;
+  late final AnimationController _shakeController;
+  late final AnimationController _btnPulseController;
+
+  late final Animation<double> _headerFade;
+  late final Animation<Offset> _headerSlide;
+  late final Animation<double> _otpFade;
+  late final Animation<Offset> _otpSlide;
+  late final Animation<double> _buttonFade;
+  late final Animation<Offset> _buttonSlide;
+  late final Animation<double> _shakeAnimation;
+  late final Animation<double> _btnPulseAnimation;
 
   @override
   void initState() {
     super.initState();
     _startTimer();
+
+    // 1. Entrance Choreography Controller (800ms)
+    _entranceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+
+    _headerFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _entranceController,
+        curve: const Interval(0.0, 0.5, curve: Curves.easeIn),
+      ),
+    );
+
+    _headerSlide = Tween<Offset>(
+      begin: const Offset(0.0, -0.15),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _entranceController,
+        curve: const Interval(0.0, 0.5, curve: Curves.easeOutCubic),
+      ),
+    );
+
+    _otpFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _entranceController,
+        curve: const Interval(0.25, 0.75, curve: Curves.easeIn),
+      ),
+    );
+
+    _otpSlide = Tween<Offset>(
+      begin: const Offset(0.0, 0.15),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _entranceController,
+        curve: const Interval(0.25, 0.75, curve: Curves.easeOutCubic),
+      ),
+    );
+
+    _buttonFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _entranceController,
+        curve: const Interval(0.45, 0.95, curve: Curves.easeIn),
+      ),
+    );
+
+    _buttonSlide = Tween<Offset>(
+      begin: const Offset(0.0, 0.2),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _entranceController,
+        curve: const Interval(0.45, 0.95, curve: Curves.easeOutCubic),
+      ),
+    );
+
+    // 2. Shake error controller (400ms)
+    _shakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+
+    _shakeAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: -10.0), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: -10.0, end: 10.0), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: 10.0, end: -6.0), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: -6.0, end: 6.0), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: 6.0, end: 0.0), weight: 1),
+    ]).animate(_shakeController);
+
+    // 3. Button Pulse on completion (350ms)
+    _btnPulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+
+    _btnPulseAnimation = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(begin: 1.0, end: 1.04).chain(CurveTween(curve: Curves.easeOut)),
+        weight: 50,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 1.04, end: 1.0).chain(CurveTween(curve: Curves.easeIn)),
+        weight: 50,
+      ),
+    ]).animate(_btnPulseController);
+
+    _entranceController.forward();
   }
 
   void _startTimer() {
@@ -48,6 +154,9 @@ class _OtpScreenState extends State<OtpScreen> {
   void dispose() {
     _timer?.cancel();
     _otpController.dispose();
+    _entranceController.dispose();
+    _shakeController.dispose();
+    _btnPulseController.dispose();
     super.dispose();
   }
 
@@ -64,6 +173,7 @@ class _OtpScreenState extends State<OtpScreen> {
                 Helpers.showSuccessSnackbar('Success', state.message);
                 context.go(AppRoutes.locationPermission);
               } else if (state is OtpFailure) {
+                _shakeController.forward(from: 0.0);
                 Helpers.showErrorSnackbar('Error', state.error);
               } else if (state is OtpResentSuccess) {
                 Helpers.showSuccessSnackbar('Success', state.message);
@@ -78,6 +188,7 @@ class _OtpScreenState extends State<OtpScreen> {
               final minutes = (_secondsRemaining ~/ 60).toString();
               final seconds = (_secondsRemaining % 60).toString().padLeft(2, '0');
               final timeText = "$minutes:$seconds";
+              final isComplete = _otpController.text.length == 6;
 
               return Padding(
                 padding: EdgeInsets.symmetric(horizontal: 6.w),
@@ -85,115 +196,161 @@ class _OtpScreenState extends State<OtpScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     SizedBox(height: 2.h),
+
+                    // Back button
                     GestureDetector(
                       onTap: () => context.go(AppRoutes.login),
-                      child: Icon(
-                        Icons.arrow_back,
-                        color: Colors.white,
-                        size: 24.sp,
-                      ),
-                    ),
-                    SizedBox(height: 4.h),
-
-                    // Title
-                    Text(
-                      'Verify Code',
-                      style: GoogleFonts.playfairDisplay(
-                        color: const Color(0xFFF1CC8A),
-                        fontSize: 26.sp,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 2.h),
-
-                    // Subtitle
-                    RichText(
-                      text: TextSpan(
-                        text: 'We have sent a 6-digit verification code to ',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF8E8A82),
-                          fontSize: 14.5.sp,
-                          height: 1.45,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.border, width: 1.2),
                         ),
-                        children: [
-                          TextSpan(
-                            text: '+91 ${widget.phoneNumber}',
-                            style: GoogleFonts.inter(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14.5.sp,
-                            ),
-                          ),
-                        ],
+                        child: Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          color: AppColors.primary,
+                          size: 14.sp,
+                        ),
                       ),
                     ),
-                    SizedBox(height: 4.h),
+                    SizedBox(height: 3.h),
 
-                    // Styled 6-digit OTP Inputs
-                    OtpInputWidget(
-                      controller: _otpController,
-                      length: 6,
-                      onChanged: (val) {
-                        setState(() {});
-                      },
-                    ),
-                    SizedBox(height: 4.h),
-
-                    // Timer / Resend Indicator
-                    Center(
-                      child: _secondsRemaining > 0
-                          ? RichText(
+                    // 1. Header & Subtitle with slide-down
+                    FadeTransition(
+                      opacity: _headerFade,
+                      child: SlideTransition(
+                        position: _headerSlide,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Verify Code',
+                              style: GoogleFonts.outfit(
+                                color: AppColors.primaryText,
+                                fontSize: 24.sp,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                            SizedBox(height: 1.5.h),
+                            RichText(
                               text: TextSpan(
-                                text: 'Resend code in ',
+                                text: 'We have sent a 6-digit verification code to ',
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFF77736D),
-                                  fontSize: 11.5.sp,
+                                  color: AppColors.secondaryText,
+                                  fontSize: 14.5.sp,
+                                  height: 1.45,
                                 ),
                                 children: [
                                   TextSpan(
-                                    text: timeText,
-                                    style: GoogleFonts.inter(
-                                      color: const Color(0xFFD9A24F),
+                                    text: '+91 ${widget.phoneNumber}',
+                                    style: GoogleFonts.outfit(
+                                      color: AppColors.primaryText,
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 11.5.sp,
+                                      fontSize: 15.sp,
                                     ),
                                   ),
                                 ],
                               ),
-                            )
-                          : GestureDetector(
-                              onTap: isLoading
-                                  ? null
-                                  : () {
-                                      context.read<OtpBloc>().add(
-                                        ResendOtpEvent(
-                                          mobile: widget.phoneNumber,
-                                        ),
-                                      );
-                                    },
-                              child: Text(
-                                'Resend Code',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFD9A24F),
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12.sp,
-                                  decoration: TextDecoration.underline,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 4.h),
+
+                    // 2. Styled 6-digit OTP Inputs with Shake & Glow
+                    FadeTransition(
+                      opacity: _otpFade,
+                      child: SlideTransition(
+                        position: _otpSlide,
+                        child: AnimatedBuilder(
+                          animation: _shakeAnimation,
+                          builder: (context, child) {
+                            return Transform.translate(
+                              offset: Offset(_shakeAnimation.value, 0.0),
+                              child: child,
+                            );
+                          },
+                          child: OtpInputWidget(
+                            controller: _otpController,
+                            length: 6,
+                            onChanged: (val) {
+                              if (val.length == 6 && _prevLength != 6) {
+                                HapticFeedback.lightImpact();
+                                _btnPulseController.forward(from: 0.0);
+                              }
+                              _prevLength = val.length;
+                              setState(() {});
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 4.h),
+
+                    // 3. Timer / Resend Indicator
+                    FadeTransition(
+                      opacity: _otpFade,
+                      child: Center(
+                        child: _secondsRemaining > 0
+                            ? RichText(
+                                text: TextSpan(
+                                  text: 'Resend code in ',
+                                  style: GoogleFonts.inter(
+                                    color: AppColors.secondaryText,
+                                    fontSize: 12.sp,
+                                  ),
+                                  children: [
+                                    TextSpan(
+                                      text: timeText,
+                                      style: GoogleFonts.outfit(
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12.5.sp,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : GestureDetector(
+                                onTap: isLoading
+                                    ? null
+                                    : () {
+                                        context.read<OtpBloc>().add(
+                                          ResendOtpEvent(
+                                            mobile: widget.phoneNumber,
+                                          ),
+                                        );
+                                      },
+                                child: Text(
+                                  'Resend Code',
+                                  style: GoogleFonts.outfit(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12.5.sp,
+                                    decoration: TextDecoration.underline,
+                                  ),
                                 ),
                               ),
-                            ),
+                      ),
                     ),
                     SizedBox(height: 2.h),
 
                     // Change mobile link
-                    Center(
-                      child: GestureDetector(
-                        onTap: () => context.go(AppRoutes.login),
-                        child: Text(
-                          'Change Mobile Number',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF8E8A82),
-                            fontSize: 12.sp,
-                            decoration: TextDecoration.underline,
+                    FadeTransition(
+                      opacity: _otpFade,
+                      child: Center(
+                        child: GestureDetector(
+                          onTap: () => context.go(AppRoutes.login),
+                          child: Text(
+                            'Change Mobile Number',
+                            style: GoogleFonts.inter(
+                              color: AppColors.secondaryText,
+                              fontSize: 12.sp,
+                              decoration: TextDecoration.underline,
+                            ),
                           ),
                         ),
                       ),
@@ -201,22 +358,31 @@ class _OtpScreenState extends State<OtpScreen> {
 
                     const Spacer(),
 
-                    // Verify & Proceed Action Button
-                    Padding(
-                      padding: EdgeInsets.only(bottom: 4.h),
-                      child: PrimaryGoldButton(
-                        text: 'Verify & Proceed',
-                        isLoading: isLoading,
-                        onPressed: _otpController.text.length == 6
-                            ? () {
-                                context.read<OtpBloc>().add(
-                                  VerifyOtpSubmitEvent(
-                                    mobile: widget.phoneNumber,
-                                    otp: _otpController.text,
-                                  ),
-                                );
-                              }
-                            : null,
+                    // 4. Verify & Proceed Action Button with pulse
+                    FadeTransition(
+                      opacity: _buttonFade,
+                      child: SlideTransition(
+                        position: _buttonSlide,
+                        child: ScaleTransition(
+                          scale: _btnPulseAnimation,
+                          child: Padding(
+                            padding: EdgeInsets.only(bottom: 4.h),
+                            child: PrimaryGoldButton(
+                              text: 'Verify & Proceed',
+                              isLoading: isLoading,
+                              onPressed: isComplete
+                                  ? () {
+                                      context.read<OtpBloc>().add(
+                                        VerifyOtpSubmitEvent(
+                                          mobile: widget.phoneNumber,
+                                          otp: _otpController.text,
+                                        ),
+                                      );
+                                    }
+                                  : null,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -284,7 +450,7 @@ class _OtpInputWidgetState extends State<OtpInputWidget> {
             ),
           ),
 
-          // Row of styled verification code boxes
+          // Row of styled verification code boxes matching SVG layout
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(widget.length, (index) {
@@ -297,30 +463,58 @@ class _OtpInputWidgetState extends State<OtpInputWidget> {
               final boxHeight = widget.length == 6 ? 14.w : 18.w;
               final fontSize = widget.length == 6 ? 18.sp : 22.sp;
 
-              return Container(
-                width: boxWidth,
-                height: boxHeight,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF161614),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isFocused
-                        ? const Color(0xFFD9A24F)
-                        : const Color(0xFF2C2721),
-                    width: isFocused ? 2.0 : 1.5,
+              return AnimatedScale(
+                scale: hasChar ? 1.04 : 1.0,
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutBack,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutCubic,
+                  width: boxWidth,
+                  height: boxHeight,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isFocused
+                          ? AppColors.primary
+                          : (hasChar ? AppColors.primaryText : AppColors.border),
+                      width: isFocused ? 2.0 : (hasChar ? 1.5 : 1.2),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: isFocused
+                            ? AppColors.primary.withValues(alpha: 0.18)
+                            : (hasChar
+                                ? Colors.black.withValues(alpha: 0.05)
+                                : Colors.black.withValues(alpha: 0.02)),
+                        blurRadius: isFocused ? 10 : 6,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
                   ),
-                ),
-                child: Center(
-                  child: isFocused
-                      ? const BlinkingCursor()
-                      : Text(
-                          char,
-                          style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontSize: fontSize,
-                            fontWeight: FontWeight.bold,
+                  child: Center(
+                    child: isFocused
+                        ? const BlinkingCursor()
+                        : AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 160),
+                            transitionBuilder: (child, anim) {
+                              return ScaleTransition(
+                                scale: anim,
+                                child: child,
+                              );
+                            },
+                            child: Text(
+                              char,
+                              key: ValueKey(char),
+                              style: GoogleFonts.outfit(
+                                color: AppColors.primaryText,
+                                fontSize: fontSize,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
-                        ),
+                  ),
                 ),
               );
             }),
@@ -365,7 +559,7 @@ class _BlinkingCursorState extends State<BlinkingCursor>
       child: Container(
         width: 2.0,
         height: 24.0,
-        color: const Color(0xFFD9A24F),
+        color: AppColors.primary,
       ),
     );
   }

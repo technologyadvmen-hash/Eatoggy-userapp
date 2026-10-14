@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/app_keys.dart';
 import '../../../../core/services/network_exceptions.dart';
+import '../../../../core/services/notification_service.dart';
 import '../../../../core/services/storage_service.dart';
 import '../data/models/send_otp_request.dart';
 import '../data/models/send_otp_response.dart';
@@ -37,8 +38,8 @@ class OtpBloc extends Bloc<OtpEvent, OtpState> {
       return;
     }
 
-    if (otp.length != 6 || !RegExp(r'^[0-9]+$').hasMatch(otp)) {
-      emit(const OtpFailure(error: 'Please enter a valid 6-digit verification code'));
+    if ((otp.length != 4 && otp.length != 6) || !RegExp(r'^[0-9]+$').hasMatch(otp)) {
+      emit(const OtpFailure(error: 'Please enter a valid verification code'));
       return;
     }
 
@@ -50,7 +51,9 @@ class OtpBloc extends Bloc<OtpEvent, OtpState> {
 
       final Map<String, dynamic> data = response.data is Map<String, dynamic>
           ? response.data as Map<String, dynamic>
-          : Map<String, dynamic>.from(response.data as Map);
+          : (response.data is Map
+              ? Map<String, dynamic>.from(response.data as Map)
+              : <String, dynamic>{});
 
       final verifyResponse = VerifyOtpResponse.fromJson(data);
 
@@ -60,6 +63,8 @@ class OtpBloc extends Bloc<OtpEvent, OtpState> {
         if (token != null && token.isNotEmpty) {
           final prefs = await SharedPreferencesService.getInstance();
           await prefs.setString(AppKeys.accessToken, token);
+          // Sync notification token with backend if available
+          NotificationService().syncCachedTokenOnLogin();
         }
 
         emit(OtpVerificationSuccess(
@@ -101,7 +106,9 @@ class OtpBloc extends Bloc<OtpEvent, OtpState> {
 
       final Map<String, dynamic> data = response.data is Map<String, dynamic>
           ? response.data as Map<String, dynamic>
-          : Map<String, dynamic>.from(response.data as Map);
+          : (response.data is Map
+              ? Map<String, dynamic>.from(response.data as Map)
+              : <String, dynamic>{});
 
       final otpResponse = SendOtpResponse.fromJson(data);
 

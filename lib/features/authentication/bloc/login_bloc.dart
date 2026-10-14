@@ -45,7 +45,9 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
 
       final Map<String, dynamic> data = response.data is Map<String, dynamic>
           ? response.data as Map<String, dynamic>
-          : Map<String, dynamic>.from(response.data as Map);
+          : (response.data is Map
+              ? Map<String, dynamic>.from(response.data as Map)
+              : <String, dynamic>{});
 
       final otpResponse = SendOtpResponse.fromJson(data);
 
