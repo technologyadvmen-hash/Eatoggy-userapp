@@ -14,17 +14,21 @@ class GetAddressesResponse {
   factory GetAddressesResponse.fromJson(Map<String, dynamic> json) {
     List<CustomerAddressData> addressList = [];
 
-    if (json['data'] is List) {
-      final list = json['data'] as List;
-      addressList = list
+    final rawList = json['data'] ?? json['addresses'];
+    if (rawList is List) {
+      addressList = rawList
           .whereType<Map>()
           .map((item) => CustomerAddressData.fromJson(Map<String, dynamic>.from(item)))
           .toList();
     }
 
+    final isSuccess = json['success'] == true ||
+        json['success'] == 'true' ||
+        (json['success'] == null && addressList.isNotEmpty);
+
     return GetAddressesResponse(
-      success: json['success'] as bool? ?? false,
-      message: json['message'] as String? ?? '',
+      success: isSuccess,
+      message: (json['message'] ?? '').toString(),
       data: addressList,
     );
   }

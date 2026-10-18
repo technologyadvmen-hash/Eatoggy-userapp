@@ -34,22 +34,35 @@ class CustomerAddressData {
   });
 
   factory CustomerAddressData.fromJson(Map<String, dynamic> json) {
+    bool parseBool(dynamic val, [bool def = false]) {
+      if (val == null) return def;
+      if (val is bool) return val;
+      if (val is num) return val == 1;
+      final s = val.toString().toLowerCase().trim();
+      return s == 'true' || s == '1';
+    }
+
+    String parseString(dynamic val, [String def = '']) {
+      if (val == null) return def;
+      return val.toString();
+    }
+
     return CustomerAddressData(
-      id: json['id'] as String? ?? json['_id'] as String? ?? '',
-      customerId: json['customerId'] as String? ?? '',
-      name: json['name'] as String? ?? '',
-      mobile: json['mobile'] as String? ?? '',
-      addressLine1: json['addressLine1'] as String? ?? '',
-      addressLine2: json['addressLine2'] as String? ?? '',
-      city: json['city'] as String? ?? '',
-      state: json['state'] as String? ?? '',
-      pincode: json['pincode'] as String? ?? '',
-      landmark: json['landmark'] as String?,
-      label: json['label'] as String? ?? 'Home',
-      isDefault: json['isDefault'] as bool? ?? false,
-      createdAt: json['createdAt'] as String?,
-      updatedAt: json['updatedAt'] as String?,
-      v: json['__v'] as int?,
+      id: parseString(json['id'] ?? json['_id']),
+      customerId: parseString(json['customerId']),
+      name: parseString(json['name']),
+      mobile: parseString(json['mobile']),
+      addressLine1: parseString(json['addressLine1']),
+      addressLine2: parseString(json['addressLine2']),
+      city: parseString(json['city']),
+      state: parseString(json['state']),
+      pincode: parseString(json['pincode']),
+      landmark: json['landmark'] != null ? parseString(json['landmark']) : null,
+      label: parseString(json['label'], 'Home'),
+      isDefault: parseBool(json['isDefault']),
+      createdAt: json['createdAt'] != null ? parseString(json['createdAt']) : null,
+      updatedAt: json['updatedAt'] != null ? parseString(json['updatedAt']) : null,
+      v: json['__v'] is int ? json['__v'] as int : int.tryParse(json['__v']?.toString() ?? ''),
     );
   }
 

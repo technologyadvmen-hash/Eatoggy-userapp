@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../data/models/serviceability_response.dart';
+
 abstract class LocationState extends Equatable {
   const LocationState();
 
@@ -23,15 +25,17 @@ class LocationSuccess extends LocationState {
   final double latitude;
   final double longitude;
   final String address;
+  final ServiceabilityResponse? serviceability;
 
   const LocationSuccess({
     required this.latitude,
     required this.longitude,
     required this.address,
+    this.serviceability,
   });
 
   @override
-  List<Object?> get props => [latitude, longitude, address];
+  List<Object?> get props => [latitude, longitude, address, serviceability];
 }
 
 class LocationFailure extends LocationState {
