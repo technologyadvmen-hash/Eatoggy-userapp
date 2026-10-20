@@ -12,6 +12,7 @@ import '../bloc/saved_addresses_bloc.dart';
 import '../bloc/saved_addresses_event.dart';
 import '../bloc/saved_addresses_state.dart';
 import '../data/models/add_address_response.dart';
+import '../data/models/update_address_request.dart';
 
 class SavedAddressesScreen extends StatelessWidget {
   const SavedAddressesScreen({super.key});
@@ -43,10 +44,10 @@ class _SavedAddressesView extends StatelessWidget {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF191714),
+        backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: Color(0xFF2C2721), width: 1.5),
+          side: const BorderSide(color: AppColors.surface, width: 1.5),
         ),
         title: Row(
           children: [
@@ -115,6 +116,171 @@ class _SavedAddressesView extends StatelessWidget {
     );
   }
 
+  void _showEditAddressModal(BuildContext context, CustomerAddressData address) {
+    final nameCtrl = TextEditingController(text: address.name);
+    final mobileCtrl = TextEditingController(text: address.mobile);
+    final addressLine1Ctrl = TextEditingController(text: address.addressLine1);
+    final landmarkCtrl = TextEditingController(text: address.landmark ?? '');
+    final cityCtrl = TextEditingController(text: address.city);
+    final pincodeCtrl = TextEditingController(text: address.pincode);
+    final stateCtrl = TextEditingController(text: address.state);
+    bool isDefault = address.isDefault;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (modalCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Edit Address (${address.label})',
+                          style: GoogleFonts.outfit(
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primaryText,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: AppColors.secondaryText),
+                          onPressed: () => Navigator.pop(modalCtx),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _buildAddressField('Recipient Name', nameCtrl),
+                    _buildAddressField('Mobile Number', mobileCtrl, keyboardType: TextInputType.phone),
+                    _buildAddressField('Address Line (House / Flat / Street)', addressLine1Ctrl),
+                    _buildAddressField('Landmark', landmarkCtrl),
+                    Row(
+                      children: [
+                        Expanded(child: _buildAddressField('City', cityCtrl)),
+                        const SizedBox(width: 12),
+                        Expanded(child: _buildAddressField('Pincode', pincodeCtrl, keyboardType: TextInputType.number)),
+                      ],
+                    ),
+                    _buildAddressField('State', stateCtrl),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Set as Default Delivery Address',
+                          style: GoogleFonts.inter(
+                            fontSize: 13.sp,
+                            color: AppColors.primaryText,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Switch(
+                          value: isDefault,
+                          activeThumbColor: AppColors.background,
+                          activeTrackColor: AppColors.primary,
+                          onChanged: (val) => setModalState(() => isDefault = val),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    GestureDetector(
+                      onTap: () {
+                        context.read<SavedAddressesBloc>().add(
+                              UpdateSavedAddressEvent(
+                                addressId: address.id,
+                                request: UpdateAddressRequest(
+                                  name: nameCtrl.text.trim(),
+                                  mobile: mobileCtrl.text.trim(),
+                                  addressLine1: addressLine1Ctrl.text.trim(),
+                                  landmark: landmarkCtrl.text.trim(),
+                                  city: cityCtrl.text.trim(),
+                                  pincode: pincodeCtrl.text.trim(),
+                                  state: stateCtrl.text.trim(),
+                                  isDefault: isDefault,
+                                ),
+                              ),
+                            );
+                        Navigator.pop(modalCtx);
+                        Helpers.showSuccessSnackbar(
+                          'Updating Address',
+                          'Saving your address changes...',
+                        );
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Center(
+                          child: Text(
+                            'Save Address',
+                            style: GoogleFonts.outfit(
+                              fontSize: 14.sp,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildAddressField(String label, TextEditingController ctrl, {TextInputType? keyboardType}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.inter(fontSize: 11.sp, color: AppColors.secondaryText),
+          ),
+          const SizedBox(height: 4),
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.border),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: TextField(
+              controller: ctrl,
+              keyboardType: keyboardType,
+              style: GoogleFonts.inter(color: AppColors.primaryText, fontSize: 13.sp),
+              decoration: const InputDecoration(border: InputBorder.none, isDense: true),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -132,9 +298,9 @@ class _SavedAddressesView extends StatelessWidget {
             },
             child: Container(
               decoration: BoxDecoration(
-                color: const Color(0xFF191714),
+                color: AppColors.surface,
                 shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFF2C2721), width: 1.5),
+                border: Border.all(color: AppColors.border, width: 1.5),
               ),
               child: const Icon(
                 Icons.arrow_back,
@@ -149,7 +315,7 @@ class _SavedAddressesView extends StatelessWidget {
           style: GoogleFonts.playfairDisplay(
             fontSize: 18.sp,
             fontWeight: FontWeight.bold,
-            color: const Color(0xFFF1CC8A),
+            color: AppColors.primaryText,
           ),
         ),
         backgroundColor: AppColors.background,
@@ -164,8 +330,8 @@ class _SavedAddressesView extends StatelessWidget {
             onPressed: () async {
               try {
                 appLog("📍 Navigating to: ${AppRoutes.addAddress}");
-                final result = await context.push(AppRoutes.addAddress);
-                if (result == true && context.mounted) {
+                await context.push(AppRoutes.addAddress);
+                if (context.mounted) {
                   context
                       .read<SavedAddressesBloc>()
                       .add(const FetchSavedAddressesEvent());
@@ -190,7 +356,7 @@ class _SavedAddressesView extends StatelessWidget {
         builder: (context, state) {
           if (state is SavedAddressesLoading) {
             return const Center(
-              child: CircularProgressIndicator(color: AppColors.primaryGold),
+              child: CircularProgressIndicator(color: AppColors.primary),
             );
           }
 
@@ -218,8 +384,8 @@ class _SavedAddressesView extends StatelessWidget {
                     SizedBox(height: 3.h),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF191714),
-                        side: const BorderSide(color: Color(0xFFD9A24F)),
+                        backgroundColor: AppColors.surface,
+                        side: const BorderSide(color: AppColors.primary),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 24,
                           vertical: 12,
@@ -236,7 +402,7 @@ class _SavedAddressesView extends StatelessWidget {
                       child: Text(
                         'Retry',
                         style: GoogleFonts.outfit(
-                          color: const Color(0xFFD9A24F),
+                          color: AppColors.primary,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -257,7 +423,7 @@ class _SavedAddressesView extends StatelessWidget {
                     Icon(
                       Icons.location_off_outlined,
                       size: 20.w,
-                      color: const Color(0xFF4A453E),
+                      color: AppColors.surface,
                     ),
                     SizedBox(height: 2.h),
                     Text(
@@ -265,7 +431,7 @@ class _SavedAddressesView extends StatelessWidget {
                       style: GoogleFonts.playfairDisplay(
                         fontSize: 18.sp,
                         fontWeight: FontWeight.bold,
-                        color: const Color(0xFFF1CC8A),
+                        color: AppColors.primaryText,
                       ),
                     ),
                     SizedBox(height: 1.h),
@@ -285,7 +451,7 @@ class _SavedAddressesView extends StatelessWidget {
 
           if (state is SavedAddressesLoaded) {
             return RefreshIndicator(
-              color: AppColors.primaryGold,
+              color: AppColors.primary,
               backgroundColor: AppColors.surface,
               onRefresh: () async {
                 context
@@ -325,8 +491,8 @@ class _SavedAddressesView extends StatelessWidget {
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: isSelected
-                              ? const Color(0xFFD9A24F)
-                              : const Color(0xFF2C2721),
+                              ? AppColors.primary
+                              : AppColors.surface,
                           width: isSelected ? 1.5 : 1.0,
                         ),
                       ),
@@ -337,7 +503,7 @@ class _SavedAddressesView extends StatelessWidget {
                             children: [
                               Icon(
                                 _getIconForLabel(address.label),
-                                color: const Color(0xFFD9A24F),
+                                color: AppColors.primary,
                                 size: 22,
                               ),
                               const SizedBox(width: 10),
@@ -359,7 +525,7 @@ class _SavedAddressesView extends StatelessWidget {
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(4),
                                     border: Border.all(
-                                      color: const Color(0xFFD9A24F),
+                                      color: AppColors.primary,
                                       width: 1.0,
                                     ),
                                   ),
@@ -368,7 +534,7 @@ class _SavedAddressesView extends StatelessWidget {
                                     style: GoogleFonts.outfit(
                                       fontSize: 10.sp,
                                       fontWeight: FontWeight.bold,
-                                      color: const Color(0xFFD9A24F),
+                                      color: AppColors.primary,
                                       letterSpacing: 1.0,
                                     ),
                                   ),
@@ -376,16 +542,37 @@ class _SavedAddressesView extends StatelessWidget {
                               ],
                               const Spacer(),
                               InkWell(
+                                onTap: () => _showEditAddressModal(context, address),
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.accentLight,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: const Color(0xFFFECDD3),
+                                      width: 1.0,
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.edit_outlined,
+                                    color: AppColors.primary,
+                                    size: 18,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              InkWell(
                                 onTap: () =>
                                     _confirmDeleteAddress(context, address),
                                 borderRadius: BorderRadius.circular(8),
                                 child: Container(
                                   padding: const EdgeInsets.all(6),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF231E18),
+                                    color: AppColors.accentLight,
                                     borderRadius: BorderRadius.circular(8),
                                     border: Border.all(
-                                      color: const Color(0xFF382F26),
+                                      color: const Color(0xFFFECDD3),
                                       width: 1.0,
                                     ),
                                   ),
@@ -400,7 +587,7 @@ class _SavedAddressesView extends StatelessWidget {
                               if (isSelected)
                                 const Icon(
                                   Icons.check_circle,
-                                  color: Color(0xFFD9A24F),
+                                  color: AppColors.primary,
                                   size: 20,
                                 )
                               else
@@ -417,7 +604,7 @@ class _SavedAddressesView extends StatelessWidget {
                             style: GoogleFonts.outfit(
                               fontSize: 13.sp,
                               fontWeight: FontWeight.w600,
-                              color: const Color(0xFFD9A24F),
+                              color: AppColors.primary,
                             ),
                           ),
                           SizedBox(height: 0.5.h),
@@ -436,7 +623,7 @@ class _SavedAddressesView extends StatelessWidget {
                               'Landmark: ${address.landmark}',
                               style: GoogleFonts.inter(
                                 fontSize: 12.sp,
-                                color: const Color(0xFF8E8A82),
+                                color: AppColors.secondaryText,
                                 fontStyle: FontStyle.italic,
                               ),
                             ),

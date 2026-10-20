@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../core/constants/app_keys.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_routes.dart';
+import '../../../core/services/storage_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/helpers.dart';
 import '../../../widgets/custom_widgets.dart';
@@ -42,6 +44,132 @@ class _AddAddressViewState extends State<_AddAddressView> {
   final _pincodeController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    _prefillFromCurrentLocation();
+  }
+
+  Future<void> _prefillFromCurrentLocation() async {
+    try {
+      final prefs = await SharedPreferencesService.getInstance();
+      final currentAddr = prefs.getString(AppKeys.currentAddress);
+      final currentCity = prefs.getString('current_city');
+      final currentPin = prefs.getString('current_pincode');
+      final userPhone = prefs.getString(AppKeys.userPhone);
+      final userName = prefs.getString(AppKeys.userName);
+
+      String detectedCity = (currentCity != null &&
+              currentCity.trim().isNotEmpty &&
+              currentCity.trim().toLowerCase() != 'gurugram')
+          ? currentCity.trim()
+          : '';
+      String detectedPin = (currentPin != null &&
+              currentPin.trim().isNotEmpty &&
+              currentPin.trim() != '122002')
+          ? currentPin.trim()
+          : '';
+      String detectedState = '';
+
+      if (currentAddr != null && currentAddr.trim().isNotEmpty) {
+        final parts = currentAddr
+            .split(',')
+            .map((p) => p.trim())
+            .where((p) => p.isNotEmpty)
+            .toList();
+
+        if (detectedPin.isEmpty) {
+          final pinMatch = RegExp(r'\b\d{6}\b').firstMatch(currentAddr);
+          if (pinMatch != null) {
+            detectedPin = pinMatch.group(0)!;
+          }
+        }
+
+        if (currentAddr.toLowerCase().contains('maharashtra')) {
+          detectedState = 'Maharashtra';
+        } else if (currentAddr.toLowerCase().contains('karnataka')) {
+          detectedState = 'Karnataka';
+        } else if (currentAddr.toLowerCase().contains('delhi')) {
+          detectedState = 'Delhi';
+        } else if (currentAddr.toLowerCase().contains('haryana')) {
+          detectedState = 'Haryana';
+        } else if (currentAddr.toLowerCase().contains('uttar pradesh')) {
+          detectedState = 'Uttar Pradesh';
+        } else if (parts.length > 2) {
+          final possibleState = parts[parts.length - 1]
+              .replaceAll(RegExp(r'\b\d{6}\b'), '')
+              .trim();
+          if (possibleState.isNotEmpty &&
+              !possibleState.toLowerCase().contains('india')) {
+            detectedState = possibleState;
+          }
+        }
+
+        if (detectedCity.isEmpty) {
+          if (parts.length >= 3) {
+            detectedCity = parts[parts.length - 2]
+                .replaceAll(RegExp(r'\b\d{6}\b'), '')
+                .trim();
+          } else if (parts.length == 2) {
+            detectedCity = parts[1]
+                .replaceAll(RegExp(r'\b\d{6}\b'), '')
+                .trim();
+          } else if (parts.isNotEmpty) {
+            detectedCity = parts[0]
+                .replaceAll(RegExp(r'\b\d{6}\b'), '')
+                .trim();
+          }
+        }
+
+        if (mounted) {
+          setState(() {
+            if (_flatController.text.isEmpty && parts.isNotEmpty) {
+              _flatController.text = parts.first;
+            }
+            if (_streetController.text.isEmpty) {
+              _streetController.text =
+                  parts.length > 1 ? parts.sublist(1).join(', ') : parts.first;
+            }
+            if (_cityController.text.isEmpty && detectedCity.isNotEmpty) {
+              _cityController.text = detectedCity;
+            }
+            if (_stateController.text.isEmpty && detectedState.isNotEmpty) {
+              _stateController.text = detectedState;
+            }
+            if (_pincodeController.text.isEmpty && detectedPin.isNotEmpty) {
+              _pincodeController.text = detectedPin;
+            }
+            if (_nameController.text.isEmpty) {
+              _nameController.text = (userName != null && userName.trim().isNotEmpty)
+                  ? userName.trim()
+                  : 'Home';
+            }
+            if (_mobileController.text.isEmpty) {
+              _mobileController.text = (userPhone != null && userPhone.trim().isNotEmpty)
+                  ? userPhone.trim()
+                  : '';
+            }
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            if (_nameController.text.isEmpty) {
+              _nameController.text = (userName != null && userName.trim().isNotEmpty)
+                  ? userName.trim()
+                  : 'Home';
+            }
+            if (_mobileController.text.isEmpty) {
+              _mobileController.text = (userPhone != null && userPhone.trim().isNotEmpty)
+                  ? userPhone.trim()
+                  : '';
+            }
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     _mobileController.dispose();
@@ -62,7 +190,7 @@ class _AddAddressViewState extends State<_AddAddressView> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(
-          'Add Delivery Address',
+          'Delivery Details',
           style: GoogleFonts.outfit(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -104,7 +232,7 @@ class _AddAddressViewState extends State<_AddAddressView> {
                   Text(
                     'Contact Details',
                     style: GoogleFonts.outfit(
-                      color: const Color(0xFFD9A24F),
+                      color: AppColors.primary,
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1.1,
@@ -112,13 +240,13 @@ class _AddAddressViewState extends State<_AddAddressView> {
                   ),
                   const SizedBox(height: 12),
                   AppTextField(
-                    labelText: 'Receiver Name',
+                    labelText: 'RECEIVER NAME',
                     hintText: 'e.g. Rahul Sharma',
                     controller: _nameController,
                   ),
                   const SizedBox(height: 16),
                   AppTextField(
-                    labelText: 'Mobile Number',
+                    labelText: 'MOBILE NUMBER',
                     hintText: 'e.g. 9876543210',
                     keyboardType: TextInputType.phone,
                     controller: _mobileController,
@@ -134,7 +262,7 @@ class _AddAddressViewState extends State<_AddAddressView> {
                   Text(
                     'Address Details',
                     style: GoogleFonts.outfit(
-                      color: const Color(0xFFD9A24F),
+                      color: AppColors.primary,
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1.1,
@@ -142,19 +270,19 @@ class _AddAddressViewState extends State<_AddAddressView> {
                   ),
                   const SizedBox(height: 12),
                   AppTextField(
-                    labelText: 'Flat / House No / Building / Floor',
+                    labelText: 'FLAT / HOUSE NO / FLOOR',
                     hintText: 'e.g. Flat 402, Sunshine Heights',
                     controller: _flatController,
                   ),
                   const SizedBox(height: 16),
                   AppTextField(
-                    labelText: 'Street / Area / Sector',
+                    labelText: 'STREET / AREA / SECTOR',
                     hintText: 'e.g. Sector 62',
                     controller: _streetController,
                   ),
                   const SizedBox(height: 16),
                   AppTextField(
-                    labelText: 'Landmark (Optional)',
+                    labelText: 'LANDMARK (OPTIONAL)',
                     hintText: 'e.g. Near Fortis Hospital',
                     controller: _landmarkController,
                   ),
@@ -163,7 +291,7 @@ class _AddAddressViewState extends State<_AddAddressView> {
                     children: [
                       Expanded(
                         child: AppTextField(
-                          labelText: 'City',
+                          labelText: 'CITY',
                           hintText: 'e.g. Noida',
                           controller: _cityController,
                         ),
@@ -171,7 +299,7 @@ class _AddAddressViewState extends State<_AddAddressView> {
                       const SizedBox(width: 16),
                       Expanded(
                         child: AppTextField(
-                          labelText: 'State',
+                          labelText: 'STATE',
                           hintText: 'e.g. Uttar Pradesh',
                           controller: _stateController,
                         ),
@@ -180,7 +308,7 @@ class _AddAddressViewState extends State<_AddAddressView> {
                   ),
                   const SizedBox(height: 16),
                   AppTextField(
-                    labelText: 'Pincode',
+                    labelText: 'PINCODE',
                     hintText: 'e.g. 201301',
                     keyboardType: TextInputType.number,
                     controller: _pincodeController,
@@ -220,11 +348,11 @@ class _AddAddressViewState extends State<_AddAddressView> {
                           ),
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? const Color(0x26D9A24F)
+                                ? AppColors.primary.withValues(alpha: 0.15)
                                 : AppColors.surface,
                             border: Border.all(
                               color: isSelected
-                                  ? const Color(0xFFD9A24F)
+                                  ? AppColors.primary
                                   : Colors.transparent,
                               width: 1.5,
                             ),
@@ -234,7 +362,7 @@ class _AddAddressViewState extends State<_AddAddressView> {
                             type,
                             style: GoogleFonts.outfit(
                               color: isSelected
-                                  ? const Color(0xFFD9A24F)
+                                  ? AppColors.primary
                                   : AppColors.secondaryText,
                               fontWeight: isSelected
                                   ? FontWeight.bold
@@ -271,8 +399,8 @@ class _AddAddressViewState extends State<_AddAddressView> {
                         ),
                         Switch(
                           value: state.isDefault,
-                          activeThumbColor: const Color(0xFFD9A24F),
-                          activeTrackColor: const Color(0x66D9A24F),
+                          activeThumbColor: AppColors.primary,
+                          activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
                           onChanged: isLoading
                               ? null
                               : (val) {

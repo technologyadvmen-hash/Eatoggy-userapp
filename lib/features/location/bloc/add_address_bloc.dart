@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_keys.dart';
@@ -148,10 +149,54 @@ class AddAddressBloc extends Bloc<AddAddressEvent, AddAddressState> {
       final addAddressResponse = AddAddressResponse.fromJson(responseData);
 
       if (addAddressResponse.success) {
-        // Save added address as current address in SharedPreferences
         final prefs = await SharedPreferencesService.getInstance();
         final displayAddress = '$addressLine1, $addressLine2, $city';
         await prefs.setString(AppKeys.currentAddress, displayAddress);
+        if (city.isNotEmpty) {
+          await prefs.setString('current_city', city);
+        }
+        if (pincode.isNotEmpty) {
+          await prefs.setString('current_pincode', pincode);
+        }
+        if (addAddressResponse.data?.id != null && addAddressResponse.data!.id.isNotEmpty) {
+          await prefs.setString('selected_address_id', addAddressResponse.data!.id);
+        }
+
+        // Update cached addresses list in SharedPreferences
+        try {
+          final newAddressObj = addAddressResponse.data ??
+              CustomerAddressData(
+                id: 'addr_${DateTime.now().millisecondsSinceEpoch}',
+                customerId: '',
+                name: name,
+                mobile: mobile,
+                addressLine1: addressLine1,
+                addressLine2: addressLine2,
+                city: city,
+                state: stateName,
+                pincode: pincode,
+                landmark: event.landmark,
+                label: event.label,
+                isDefault: event.isDefault,
+              );
+
+          List<CustomerAddressData> currentList = [];
+          final cachedStr = prefs.getString('cached_customer_addresses');
+          if (cachedStr != null && cachedStr.isNotEmpty) {
+            final decoded = jsonDecode(cachedStr);
+            if (decoded is List) {
+              currentList = decoded
+                  .whereType<Map>()
+                  .map((e) => CustomerAddressData.fromJson(Map<String, dynamic>.from(e)))
+                  .toList();
+            }
+          }
+          currentList = [newAddressObj, ...currentList.where((a) => a.id != newAddressObj.id)];
+          await prefs.setString(
+            'cached_customer_addresses',
+            jsonEncode(currentList.map((a) => a.toJson()).toList()),
+          );
+        } catch (_) {}
 
         emit(AddAddressSuccess(
           response: addAddressResponse,

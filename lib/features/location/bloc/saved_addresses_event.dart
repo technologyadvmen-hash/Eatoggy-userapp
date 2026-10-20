@@ -27,3 +27,13 @@ class DeleteSavedAddressEvent extends SavedAddressesEvent {
   @override
   List<Object?> get props => [addressId];
 }
+
+class UpdateSavedAddressEvent extends SavedAddressesEvent {
+  final String addressId;
+  final dynamic request;
+  const UpdateSavedAddressEvent({required this.addressId, required this.request});
+
+  @override
+  List<Object?> get props => [addressId, request];
+}
+
