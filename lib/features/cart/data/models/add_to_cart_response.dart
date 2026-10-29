@@ -143,10 +143,19 @@ class CartDataModel {
           .toList();
     }
 
+    String? rId;
+    if (json['restaurantId'] is String) {
+      rId = json['restaurantId'] as String;
+    } else if (json['restaurantId'] is Map) {
+      rId = (json['restaurantId']['_id'] ?? json['restaurantId']['id'])?.toString();
+    } else if (json['restaurant'] is Map) {
+      rId = (json['restaurant']['_id'] ?? json['restaurant']['id'])?.toString();
+    }
+
     return CartDataModel(
       id: json['_id'] as String? ?? json['id'] as String? ?? '',
       customerId: json['customerId'] as String? ?? '',
-      restaurantId: json['restaurantId'] as String?,
+      restaurantId: rId,
       restaurant: json['restaurant'] != null
           ? CartRestaurantModel.fromJson(json['restaurant'])
           : null,

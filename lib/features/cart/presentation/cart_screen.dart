@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sizer/sizer.dart';
 
+import '../../../core/constants/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../widgets/custom_widgets.dart';
 import '../cubit/cart_cubit.dart';
 
 class CartScreen extends StatefulWidget {
@@ -39,7 +41,7 @@ class _CartScreenState extends State<CartScreen> {
             if (state.isLoading && state.items.isEmpty) {
               return const Center(
                 child: CircularProgressIndicator(
-                  color: AppColors.primaryGold,
+                  color: AppColors.primary,
                 ),
               );
             }
@@ -48,74 +50,112 @@ class _CartScreenState extends State<CartScreen> {
             // Empty Cart State
             // -----------------------------
             if (state.items.isEmpty) {
-              return RefreshIndicator(
-                color: AppColors.primaryGold,
-                backgroundColor: const Color(0xFF161614),
-                onRefresh: () {
-                  return context.read<CartCubit>().fetchCart();
-                },
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  child: SizedBox(
-                    height: 80.h,
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 6.w),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.shopping_basket_outlined,
-                            size: 60.sp,
-                            color: const Color(0xFF8E8A82),
-                          ),
-                          SizedBox(height: 3.h),
-                          Text(
-                            'Your Box is Empty',
-                            style: GoogleFonts.playfairDisplay(
-                              color: const Color(0xFFF1CC8A),
-                              fontSize: 22.sp,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(height: 1.5.h),
-                          Text(
-                            'Add delicious home-cooked meals to your box.',
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFF8E8A82),
-                              fontSize: 14.5.sp,
-                            ),
-                          ),
-                          SizedBox(height: 4.h),
-                          GestureDetector(
-                            onTap: () {
-                              context.go('/menu');
-                            },
-                            child: Container(
-                              width: 50.w,
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 14,
-                              ),
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                gradient: AppColors.goldGradient,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Text(
-                                'Explore Menu',
-                                style: GoogleFonts.inter(
-                                  color: Colors.black,
-                                  fontSize: 14.sp,
-                                  fontWeight: FontWeight.bold,
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  return RefreshIndicator(
+                    color: AppColors.primary,
+                    backgroundColor: AppColors.surface,
+                    onRefresh: () {
+                      return context.read<CartCubit>().fetchCart();
+                    },
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight,
+                        ),
+                        child: Center(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 4.h),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Container(
+                                  width: 100,
+                                  height: 100,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surface,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: AppColors.border,
+                                      width: 1.5,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.03),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Center(
+                                    child: Icon(
+                                      Icons.shopping_basket_outlined,
+                                      size: 46.sp,
+                                      color: AppColors.secondaryText,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                SizedBox(height: 3.h),
+                                Text(
+                                  'Your Box is Empty',
+                                  style: GoogleFonts.outfit(
+                                    color: AppColors.primaryText,
+                                    fontSize: 22.sp,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                SizedBox(height: 1.2.h),
+                                Text(
+                                  'Add delicious home-cooked meals to your box.',
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.inter(
+                                    color: AppColors.secondaryText,
+                                    fontSize: 14.5.sp,
+                                  ),
+                                ),
+                                SizedBox(height: 3.5.h),
+                                GestureDetector(
+                                  onTap: () {
+                                    context.go('/menu');
+                                  },
+                                  child: Container(
+                                    width: 52.w,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 14,
+                                    ),
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary,
+                                      borderRadius: BorderRadius.circular(16),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: AppColors.primary.withValues(alpha: 0.3),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Text(
+                                      'Explore Menu',
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white,
+                                        fontSize: 14.sp,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                ),
+                  );
+                },
               );
             }
 
@@ -128,8 +168,8 @@ class _CartScreenState extends State<CartScreen> {
             final double grandTotal = subtotal - discount;
 
             return RefreshIndicator(
-              color: AppColors.primaryGold,
-              backgroundColor: const Color(0xFF161614),
+              color: AppColors.primary,
+              backgroundColor: AppColors.surface,
               onRefresh: () {
                 return context.read<CartCubit>().fetchCart();
               },
@@ -150,15 +190,33 @@ class _CartScreenState extends State<CartScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // -----------------------------
-                        // Title
+                        // Title Header
                         // -----------------------------
-                        Text(
-                          'Your Box',
-                          style: GoogleFonts.playfairDisplay(
-                            color: const Color(0xFFF1CC8A),
-                            fontSize: 20.sp,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        Row(
+                          children: [
+                            if (Navigator.of(context).canPop()) ...[
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: AppColors.border, width: 1.2),
+                                ),
+                                child: IconButton(
+                                  icon: Icon(Icons.arrow_back_ios_new, color: AppColors.primary, size: 14.sp),
+                                  onPressed: () => Navigator.of(context).pop(),
+                                ),
+                              ),
+                              SizedBox(width: 4.w),
+                            ],
+                            Text(
+                              'Your Box',
+                              style: GoogleFonts.outfit(
+                                color: AppColors.primaryText,
+                                fontSize: 18.sp,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
 
                         SizedBox(height: 3.h),
@@ -177,12 +235,19 @@ class _CartScreenState extends State<CartScreen> {
                               margin: EdgeInsets.only(bottom: 2.h),
                               padding: EdgeInsets.all(3.5.w),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF161614),
+                                color: Colors.white,
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
-                                  color: const Color(0xFF2C2721),
+                                  color: AppColors.border,
                                   width: 1.2,
                                 ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.03),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
                               ),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -212,9 +277,9 @@ class _CartScreenState extends State<CartScreen> {
                                                 item.food.name,
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
-                                                style: GoogleFonts.inter(
-                                                  color: Colors.white,
-                                                  fontSize: 15.sp,
+                                                style: GoogleFonts.outfit(
+                                                  color: AppColors.primaryText,
+                                                  fontSize: 15.5.sp,
                                                   fontWeight: FontWeight.bold,
                                                 ),
                                               ),
@@ -229,9 +294,9 @@ class _CartScreenState extends State<CartScreen> {
                                               child: Padding(
                                                 padding: EdgeInsets.only(left: 2.w),
                                                 child: Icon(
-                                                  Icons.close,
-                                                  color: const Color(0xFF8E8A82),
-                                                  size: 14.sp,
+                                                  Icons.delete_outline_rounded,
+                                                  color: const Color(0xFFEF4444),
+                                                  size: 17.5.sp,
                                                 ),
                                               ),
                                             ),
@@ -245,7 +310,7 @@ class _CartScreenState extends State<CartScreen> {
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: GoogleFonts.inter(
-                                            color: const Color(0xFF8E8A82),
+                                            color: AppColors.secondaryText,
                                             fontSize: 13.5.sp,
                                           ),
                                         ),
@@ -262,8 +327,8 @@ class _CartScreenState extends State<CartScreen> {
                                             Text(
                                               '₹${item.food.price.toInt()}',
                                               style: GoogleFonts.outfit(
-                                                color: const Color(0xFFD9A24F),
-                                                fontSize: 15.sp,
+                                                color: AppColors.primary,
+                                                fontSize: 16.sp,
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
@@ -271,12 +336,12 @@ class _CartScreenState extends State<CartScreen> {
                                             // Quantity Selector
                                             Container(
                                               decoration: BoxDecoration(
-                                                color: const Color(0xFF1E1C1A),
+                                                color: Colors.white,
                                                 borderRadius:
-                                                    BorderRadius.circular(16),
+                                                    BorderRadius.circular(22),
                                                 border: Border.all(
-                                                  color:
-                                                      const Color(0xFF2C2721),
+                                                  color: AppColors.border,
+                                                  width: 1.2,
                                                 ),
                                               ),
                                               child: Row(
@@ -287,19 +352,17 @@ class _CartScreenState extends State<CartScreen> {
                                                         const BoxConstraints(),
                                                     padding:
                                                         EdgeInsets.symmetric(
-                                                      horizontal: 2.w,
-                                                      vertical: 0.5.h,
+                                                      horizontal: 2.2.w,
+                                                      vertical: 0.6.h,
                                                     ),
                                                     icon: Icon(
                                                       item.quantity == 1
-                                                          ? Icons.delete_outline
-                                                          : Icons.remove,
+                                                          ? Icons.delete_outline_rounded
+                                                          : Icons.remove_rounded,
                                                       color: item.quantity == 1
-                                                          ? const Color(0xFFE57373)
-                                                          : const Color(
-                                                              0xFF8E8A82,
-                                                            ),
-                                                      size: 13.sp,
+                                                          ? const Color(0xFFEF4444)
+                                                          : AppColors.secondaryText,
+                                                      size: 17.5.sp,
                                                     ),
                                                     onPressed: () {
                                                       context
@@ -314,14 +377,14 @@ class _CartScreenState extends State<CartScreen> {
                                                   Padding(
                                                     padding:
                                                         EdgeInsets.symmetric(
-                                                      horizontal: 1.w,
+                                                      horizontal: 2.w,
                                                     ),
                                                     child: Text(
                                                       '${item.quantity}',
                                                       style:
-                                                          GoogleFonts.inter(
-                                                        color: Colors.white,
-                                                        fontSize: 14.sp,
+                                                          GoogleFonts.outfit(
+                                                        color: AppColors.primaryText,
+                                                        fontSize: 17.sp,
                                                         fontWeight:
                                                             FontWeight.bold,
                                                       ),
@@ -333,15 +396,13 @@ class _CartScreenState extends State<CartScreen> {
                                                         const BoxConstraints(),
                                                     padding:
                                                         EdgeInsets.symmetric(
-                                                      horizontal: 2.w,
-                                                      vertical: 0.5.h,
+                                                      horizontal: 2.2.w,
+                                                      vertical: 0.6.h,
                                                     ),
                                                     icon: Icon(
-                                                      Icons.add,
-                                                      color: const Color(
-                                                        0xFFD9A24F,
-                                                      ),
-                                                      size: 13.sp,
+                                                      Icons.add_rounded,
+                                                      color: AppColors.primary,
+                                                      size: 17.5.sp,
                                                     ),
                                                     onPressed: () {
                                                       context
@@ -369,71 +430,54 @@ class _CartScreenState extends State<CartScreen> {
                         SizedBox(height: 2.h),
 
                         // =================================================
-                        // APPLY COUPON
+                        // APPLY COUPON / CHECK OFFER BANNER
+                        // Matches c14-cart.svg red gradient offer bar
                         // =================================================
                         GestureDetector(
-                          onTap: state.appliedCoupon == null
-                              ? () {
-                                  // TODO: Navigate/open coupon selection
-                                }
-                              : null,
+                          onTap: () {
+                            context.push(AppRoutes.offers);
+                          },
                           child: Container(
-                            padding: EdgeInsets.all(4.w),
+                            height: 6.5.h,
+                            padding: EdgeInsets.symmetric(horizontal: 4.w),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF161614),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: const Color(0xFF2C2721),
-                                width: 1.2,
-                              ),
+                              gradient: AppColors.redGradient,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary.withValues(alpha: 0.28),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
                             child: Row(
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0x28D9A24F),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Icon(
-                                    Icons.percent,
-                                    color: const Color(0xFFD9A24F),
-                                    size: 16.sp,
-                                  ),
+                                const Icon(
+                                  Icons.local_offer_rounded,
+                                  color: Colors.white,
+                                  size: 20,
                                 ),
 
                                 SizedBox(width: 3.w),
 
                                 Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Apply Coupon',
-                                        style: GoogleFonts.inter(
-                                          color: Colors.white,
-                                          fontSize: 14.5.sp,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      SizedBox(height: 0.3.h),
-                                      Text(
-                                        state.appliedCoupon != null
-                                            ? '${state.appliedCoupon!.code} applied'
-                                            : 'Select from available vouchers',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFF8E8A82),
-                                          fontSize: 13.sp,
-                                        ),
-                                      ),
-                                    ],
+                                  child: Text(
+                                    state.appliedCoupon != null
+                                        ? '${state.appliedCoupon!.code} Applied (₹${discount.toInt()} Saved)'
+                                        : 'Check Offer & Apply Coupon',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.outfit(
+                                      color: Colors.white,
+                                      fontSize: 14.5.sp,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.3,
+                                    ),
                                   ),
                                 ),
 
-                                // Coupon Remove / Arrow
+                                // Coupon Remove / Check Offer CTA
                                 if (state.appliedCoupon != null)
                                   GestureDetector(
                                     onTap: () {
@@ -441,20 +485,40 @@ class _CartScreenState extends State<CartScreen> {
                                           .read<CartCubit>()
                                           .removeCoupon();
                                     },
-                                    child: Text(
-                                      'Remove',
-                                      style: GoogleFonts.inter(
-                                        color: Colors.redAccent,
-                                        fontSize: 14.sp,
-                                        fontWeight: FontWeight.bold,
+                                    child: Container(
+                                      padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 0.5.h),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(alpha: 0.25),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        'Remove',
+                                        style: GoogleFonts.outfit(
+                                          color: Colors.white,
+                                          fontSize: 12.sp,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
                                   )
                                 else
-                                  Icon(
-                                    Icons.arrow_forward_ios,
-                                    color: const Color(0xFF8E8A82),
-                                    size: 12.sp,
+                                  Row(
+                                    children: [
+                                      Text(
+                                        'Check Offer',
+                                        style: GoogleFonts.outfit(
+                                          color: Colors.white,
+                                          fontSize: 13.sp,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      SizedBox(width: 1.w),
+                                      const Icon(
+                                        Icons.arrow_forward_ios_rounded,
+                                        color: Colors.white,
+                                        size: 13,
+                                      ),
+                                    ],
                                   ),
                               ],
                             ),
@@ -465,13 +529,15 @@ class _CartScreenState extends State<CartScreen> {
 
                         // =================================================
                         // BILL SUMMARY
+                        // Matches c14-cart.svg LUXURY BILL SUMMARY
                         // =================================================
                         Text(
-                          'Bill Summary',
-                          style: GoogleFonts.playfairDisplay(
-                            color: const Color(0xFFF1CC8A),
-                            fontSize: 18.sp,
+                          'LUXURY BILL SUMMARY',
+                          style: GoogleFonts.outfit(
+                            color: AppColors.primary,
+                            fontSize: 13.sp,
                             fontWeight: FontWeight.bold,
+                            letterSpacing: 1.5,
                           ),
                         ),
 
@@ -480,12 +546,19 @@ class _CartScreenState extends State<CartScreen> {
                         Container(
                           padding: EdgeInsets.all(4.w),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF161614),
+                            color: Colors.white,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: const Color(0xFF2C2721),
+                              color: AppColors.border,
                               width: 1.2,
                             ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.03),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
                           child: Column(
                             children: [
@@ -493,16 +566,24 @@ class _CartScreenState extends State<CartScreen> {
                                 'Item Subtotal',
                                 '₹${subtotal.toInt()}',
                               ),
+                              _buildSummaryItem(
+                                'Insulated Hot-Case Delivery',
+                                'FREE',
+                              ),
+                              _buildSummaryItem(
+                                'Surcharge & Taxes',
+                                '₹0.00',
+                              ),
 
                               if (discount > 0)
                                 _buildSummaryItem(
-                                  'Discount',
+                                  'Coupon Discount',
                                   '-₹${discount.toInt()}',
                                   isDiscount: true,
                                 ),
 
                               const Divider(
-                                color: Color(0xFF2C2721),
+                                color: AppColors.border,
                                 height: 24,
                               ),
 
@@ -512,17 +593,17 @@ class _CartScreenState extends State<CartScreen> {
                                 children: [
                                   Text(
                                     'Grand Total',
-                                    style: GoogleFonts.inter(
-                                      color: Colors.white,
-                                      fontSize: 15.sp,
+                                    style: GoogleFonts.outfit(
+                                      color: AppColors.primaryText,
+                                      fontSize: 16.sp,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                   Text(
                                     '₹${grandTotal.toStringAsFixed(2)}',
                                     style: GoogleFonts.outfit(
-                                      color: const Color(0xFFD9A24F),
-                                      fontSize: 17.sp,
+                                      color: AppColors.primary,
+                                      fontSize: 18.sp,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -551,17 +632,17 @@ class _CartScreenState extends State<CartScreen> {
                         vertical: 2.h,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF161614),
+                        color: Colors.white,
                         border: const Border(
                           top: BorderSide(
-                            color: Color(0xFF2C2721),
+                            color: AppColors.border,
                             width: 1.2,
                           ),
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.5),
-                            blurRadius: 10,
+                            color: Colors.black.withValues(alpha: 0.06),
+                            blurRadius: 12,
                             offset: const Offset(0, -3),
                           ),
                         ],
@@ -577,67 +658,48 @@ class _CartScreenState extends State<CartScreen> {
                             children: [
                               Text(
                                 'TO PAY',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFF8E8A82),
+                                style: GoogleFonts.outfit(
+                                  color: AppColors.secondaryText,
                                   fontSize: 12.sp,
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.2,
                                 ),
                               ),
                               SizedBox(height: 0.3.h),
                               Text(
                                 '₹${grandTotal.toStringAsFixed(2)}',
                                 style: GoogleFonts.outfit(
-                                  color: const Color(0xFFD9A24F),
-                                  fontSize: 18.sp,
+                                  color: AppColors.primary,
+                                  fontSize: 19.sp,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ],
                           ),
 
-                          SizedBox(width: 6.w),
+                          SizedBox(width: 5.w),
 
                           // -----------------------------
                           // Checkout Button
                           // -----------------------------
                           Expanded(
-                            child: GestureDetector(
-                              onTap: () {
+                            child: SpeedAnimatedButton(
+                              text: 'Proceed to Checkout',
+                              height: 52,
+                              borderRadius: BorderRadius.circular(16),
+                              textStyle: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontSize: 14.5.sp,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              suffixIcon: Icon(
+                                Icons.arrow_forward_rounded,
+                                color: Colors.white,
+                                size: 16.sp,
+                              ),
+                              onPressed: () {
                                 context.push('/checkout');
                               },
-                              child: Container(
-                                padding: EdgeInsets.symmetric(
-                                  vertical: 1.6.h,
-                                ),
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  gradient: AppColors.goldGradient,
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Flexible(
-                                      child: Text(
-                                        'Proceed to Checkout',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: GoogleFonts.inter(
-                                          color: Colors.black,
-                                          fontSize: 14.5.sp,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                    SizedBox(width: 2.w),
-                                    Icon(
-                                      Icons.arrow_forward,
-                                      color: Colors.black,
-                                      size: 15.sp,
-                                    ),
-                                  ],
-                                ),
-                              ),
                             ),
                           ),
                         ],
@@ -659,8 +721,7 @@ class _CartScreenState extends State<CartScreen> {
 
   Widget _buildFoodImage(dynamic item) {
     final String imageUrl = item.food.imageUrl;
-    final String fallbackImage =
-        item.food.isVeg ? 'assets/f1.png' : 'assets/f2.png';
+    final String fallbackImage = item.food.fallbackImageAsset;
 
     if (imageUrl.startsWith('http')) {
       return Image.network(
@@ -713,7 +774,7 @@ class _CartScreenState extends State<CartScreen> {
             child: Text(
               label,
               style: GoogleFonts.inter(
-                color: const Color(0xFF8E8A82),
+                color: AppColors.secondaryText,
                 fontSize: 14.sp,
               ),
             ),
@@ -721,14 +782,14 @@ class _CartScreenState extends State<CartScreen> {
           SizedBox(width: 3.w),
           Text(
             value,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.outfit(
               color: isDiscount
-                  ? const Color(0xFF4CAF50)
-                  : Colors.white,
-              fontSize: 14.sp,
+                  ? const Color(0xFF16A34A)
+                  : AppColors.primaryText,
+              fontSize: 14.5.sp,
               fontWeight: isDiscount
-                  ? FontWeight.w600
-                  : FontWeight.normal,
+                  ? FontWeight.bold
+                  : FontWeight.w600,
             ),
           ),
         ],

@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
+import '../../../core/services/storage_service.dart';
 import '../../../shared/models/models.dart';
 import '../data/models/add_to_cart_request.dart';
 import '../data/models/add_to_cart_response.dart';
@@ -62,30 +64,81 @@ class CartCubit extends Cubit<CartState> {
 
   CartCubit({CartRepository? cartRepository})
       : cartRepository = cartRepository ?? CartRepositoryImpl(),
-        super(const CartState());
+        super(const CartState()) {
+    loadCachedCart();
+  }
+
+  Future<void> loadCachedCart() async {
+    try {
+      final prefs = await SharedPreferencesService.getInstance();
+      final cachedStr = prefs.getString('cached_customer_cart');
+      if (cachedStr != null && cachedStr.isNotEmpty) {
+        final decoded = jsonDecode(cachedStr);
+        if (decoded is List && decoded.isNotEmpty) {
+          final cachedItems = decoded
+              .whereType<Map>()
+              .map((e) => CartItem.fromJson(Map<String, dynamic>.from(e)))
+              .toList();
+          if (cachedItems.isNotEmpty && state.items.isEmpty) {
+            emit(state.copyWith(items: cachedItems));
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveCartToCache(List<CartItem> items) async {
+    try {
+      final prefs = await SharedPreferencesService.getInstance();
+      final encoded = jsonEncode(items.map((i) => i.toJson()).toList());
+      await prefs.setString('cached_customer_cart', encoded);
+    } catch (_) {}
+  }
+
+  List<CartItem> _mergeItems(List<CartItem> currentList, List<CartItem> serverList) {
+    final result = List<CartItem>.from(currentList);
+    for (final sItem in serverList) {
+      final idx = result.indexWhere((c) =>
+          (c.cartItemId != null && sItem.cartItemId != null && c.cartItemId == sItem.cartItemId) ||
+          c.food.id == sItem.food.id ||
+          c.food.name.toLowerCase().trim() == sItem.food.name.toLowerCase().trim());
+      if (idx >= 0) {
+        final existing = result[idx];
+        result[idx] = existing.copyWith(
+          cartItemId: sItem.cartItemId ?? existing.cartItemId,
+          quantity: existing.quantity > 0 ? existing.quantity : sItem.quantity,
+          food: existing.food.restaurantId != null ? existing.food : sItem.food,
+        );
+      } else {
+        result.add(sItem);
+      }
+    }
+    return result;
+  }
 
   Future<GetCartResponse?> fetchCart() async {
-    emit(state.copyWith(isLoading: true, error: null));
+    if (state.items.isEmpty) {
+      await loadCachedCart();
+    }
+    emit(state.copyWith(isLoading: state.items.isEmpty, error: null));
     try {
       final response = await cartRepository.getCart();
       if (response.success && response.data != null) {
         final backendItems = response.data!.items.map((i) => i.toCartItem()).toList();
+        final merged = _mergeItems(state.items, backendItems);
         emit(state.copyWith(
           isLoading: false,
-          items: backendItems,
-          restaurantId: response.data!.restaurantId,
+          items: merged,
+          restaurantId: response.data!.restaurantId ?? state.restaurantId,
         ));
+        await _saveCartToCache(merged);
       } else {
-        emit(state.copyWith(
-          isLoading: false,
-          items: [],
-        ));
+        emit(state.copyWith(isLoading: false));
       }
       return response;
     } catch (e) {
       emit(state.copyWith(
         isLoading: false,
-        error: 'Failed to load cart',
       ));
       return null;
     }
@@ -95,21 +148,25 @@ class CartCubit extends Cubit<CartState> {
     final validQuantity = quantity < 1 ? 1 : quantity;
 
     // 1. Optimistic update
-    final index = state.items.indexWhere((e) => e.food.id == food.id);
+    final index = state.items.indexWhere((e) =>
+        e.food.id == food.id ||
+        e.food.name.toLowerCase().trim() == food.name.toLowerCase().trim());
+    List<CartItem> updatedList;
     if (index >= 0) {
-      final updatedList = List<CartItem>.from(state.items);
+      updatedList = List<CartItem>.from(state.items);
       updatedList[index] = updatedList[index].copyWith(
         quantity: updatedList[index].quantity + validQuantity,
       );
-      emit(state.copyWith(items: updatedList));
     } else {
-      emit(state.copyWith(items: [
+      updatedList = [
         ...state.items,
         CartItem(food: food, quantity: validQuantity),
-      ]));
+      ];
     }
+    emit(state.copyWith(items: updatedList));
+    await _saveCartToCache(updatedList);
 
-    // 2. API call to POST /api/cart/items
+    // 2. Sync with backend API
     try {
       emit(state.copyWith(isAdding: true));
       final request = AddToCartRequest(
@@ -119,16 +176,19 @@ class CartCubit extends Cubit<CartState> {
       final response = await cartRepository.addToCart(request);
       if (response.success && response.data != null && response.data!.items.isNotEmpty) {
         final syncedItems = response.data!.items.map((i) => i.toCartItem()).toList();
+        final merged = _mergeItems(state.items, syncedItems);
         emit(state.copyWith(
           isAdding: false,
-          items: syncedItems,
-          restaurantId: response.data!.restaurantId,
+          items: merged,
+          restaurantId: response.data!.restaurantId ?? state.restaurantId,
         ));
+        await _saveCartToCache(merged);
       } else {
         emit(state.copyWith(isAdding: false));
       }
       return response;
     } catch (e) {
+      // Retain optimistic item in cart! Do not discard!
       emit(state.copyWith(isAdding: false));
       return null;
     }
@@ -149,11 +209,13 @@ class CartCubit extends Cubit<CartState> {
       final response = await cartRepository.addToCart(request);
       if (response.success && response.data != null && response.data!.items.isNotEmpty) {
         final syncedItems = response.data!.items.map((i) => i.toCartItem()).toList();
+        final merged = _mergeItems(state.items, syncedItems);
         emit(state.copyWith(
           isAdding: false,
-          items: syncedItems,
-          restaurantId: response.data!.restaurantId,
+          items: merged,
+          restaurantId: response.data!.restaurantId ?? state.restaurantId,
         ));
+        await _saveCartToCache(merged);
       } else {
         emit(state.copyWith(isAdding: false));
       }
@@ -178,7 +240,9 @@ class CartCubit extends Cubit<CartState> {
       food = itemOrFood.food;
     } else if (itemOrFood is FoodItem) {
       food = itemOrFood;
-      final idx = state.items.indexWhere((e) => e.food.id == itemOrFood.id);
+      final idx = state.items.indexWhere((e) =>
+          e.food.id == itemOrFood.id ||
+          e.food.name.toLowerCase().trim() == itemOrFood.name.toLowerCase().trim());
       if (idx >= 0) {
         cartItem = state.items[idx];
       }
@@ -191,12 +255,14 @@ class CartCubit extends Cubit<CartState> {
         : (food?.id ?? '');
 
     // 1. Optimistic update
-    final previousItems = List<CartItem>.from(state.items);
     final updatedList = state.items.map((e) {
       final matchesCartItem = cartItem != null &&
           ((cartItem.cartItemId != null && cartItem.cartItemId == e.cartItemId) ||
-              cartItem.food.id == e.food.id);
-      final matchesFood = food != null && e.food.id == food.id;
+              cartItem.food.id == e.food.id ||
+              cartItem.food.name.toLowerCase().trim() == e.food.name.toLowerCase().trim());
+      final matchesFood = food != null &&
+          (e.food.id == food.id ||
+              e.food.name.toLowerCase().trim() == food.name.toLowerCase().trim());
 
       if (matchesCartItem || matchesFood) {
         return e.copyWith(quantity: validQty);
@@ -205,38 +271,37 @@ class CartCubit extends Cubit<CartState> {
     }).toList();
 
     emit(state.copyWith(items: updatedList));
+    await _saveCartToCache(updatedList);
 
-    // 2. Call backend API: PATCH/PUT {{baseUrl}}/api/cart/items/:itemId
+    // 2. Call backend API if possible
     if (itemId.isNotEmpty) {
       try {
         final request = UpdateCartItemRequest(quantity: validQty);
         UpdateCartItemResponse? response;
         try {
           response = await cartRepository.updateCartItem(itemId, request);
-        } catch (e) {
-          // If itemId failed (e.g. 404 or 400) and food.id is different, try with food.id as fallback
+        } catch (_) {
           if (food != null && food.id.isNotEmpty && food.id != itemId) {
             response = await cartRepository.updateCartItem(food.id, request);
-          } else {
-            rethrow;
           }
         }
 
-        if (response.success &&
+        if (response != null &&
+            response.success &&
             response.data != null &&
             response.data!.items.isNotEmpty) {
           final syncedItems =
               response.data!.items.map((i) => i.toCartItem()).toList();
+          final merged = _mergeItems(state.items, syncedItems);
           emit(state.copyWith(
-            items: syncedItems,
-            restaurantId: response.data!.restaurantId,
+            items: merged,
+            restaurantId: response.data!.restaurantId ?? state.restaurantId,
           ));
+          await _saveCartToCache(merged);
         }
         return response;
-      } catch (e) {
-        // Revert to previous state if network call fails
-        emit(state.copyWith(items: previousItems));
-        return null;
+      } catch (_) {
+        // Do NOT revert! Retain local state
       }
     }
 
@@ -252,7 +317,9 @@ class CartCubit extends Cubit<CartState> {
       food = itemOrFood.food;
     } else if (itemOrFood is FoodItem) {
       food = itemOrFood;
-      final idx = state.items.indexWhere((e) => e.food.id == itemOrFood.id);
+      final idx = state.items.indexWhere((e) =>
+          e.food.id == itemOrFood.id ||
+          e.food.name.toLowerCase().trim() == itemOrFood.name.toLowerCase().trim());
       if (idx >= 0) {
         cartItem = state.items[idx];
       }
@@ -265,13 +332,14 @@ class CartCubit extends Cubit<CartState> {
         : (food?.id ?? '');
 
     // 1. Optimistic removal
-    final previousItems = List<CartItem>.from(state.items);
-    final previousRestaurantId = state.restaurantId;
     final updatedList = state.items.where((e) {
       final matchesCartItem = cartItem != null &&
           ((cartItem.cartItemId != null && cartItem.cartItemId == e.cartItemId) ||
-              cartItem.food.id == e.food.id);
-      final matchesFood = food != null && e.food.id == food.id;
+              cartItem.food.id == e.food.id ||
+              cartItem.food.name.toLowerCase().trim() == e.food.name.toLowerCase().trim());
+      final matchesFood = food != null &&
+          (e.food.id == food.id ||
+              e.food.name.toLowerCase().trim() == food.name.toLowerCase().trim());
       return !(matchesCartItem || matchesFood);
     }).toList();
 
@@ -279,38 +347,33 @@ class CartCubit extends Cubit<CartState> {
       items: updatedList,
       restaurantId: updatedList.isEmpty ? null : state.restaurantId,
     ));
+    await _saveCartToCache(updatedList);
 
-    // 2. Call backend API: DELETE {{baseUrl}}/api/cart/items/:itemId
+    // 2. Call backend API
     if (itemId.isNotEmpty) {
       try {
         RemoveCartItemResponse? response;
         try {
           response = await cartRepository.removeCartItem(itemId);
-        } catch (e) {
-          // If itemId failed and food.id is different, try with food.id as fallback
+        } catch (_) {
           if (food != null && food.id.isNotEmpty && food.id != itemId) {
             response = await cartRepository.removeCartItem(food.id);
-          } else {
-            rethrow;
           }
         }
 
-        if (response.success && response.data != null) {
+        if (response != null && response.success && response.data != null) {
           final syncedItems =
               response.data!.items.map((i) => i.toCartItem()).toList();
+          final merged = _mergeItems(state.items, syncedItems);
           emit(state.copyWith(
-            items: syncedItems,
-            restaurantId: response.data!.restaurantId,
+            items: merged,
+            restaurantId: response.data!.restaurantId ?? state.restaurantId,
           ));
+          await _saveCartToCache(merged);
         }
         return response;
-      } catch (e) {
-        // Revert to previous state if network call fails
-        emit(state.copyWith(
-          items: previousItems,
-          restaurantId: previousRestaurantId,
-        ));
-        return null;
+      } catch (_) {
+        // Do NOT revert! Retain local state
       }
     }
 
@@ -327,7 +390,13 @@ class CartCubit extends Cubit<CartState> {
     emit(state.copyWith(clearCoupon: true));
   }
 
-  void clearCart() {
+  Future<void> clearCart() async {
     emit(const CartState());
+    await _saveCartToCache([]);
+    try {
+      await cartRepository.clearCart();
+    } catch (_) {
+      // Best effort - local state is already cleared
+    }
   }
 }

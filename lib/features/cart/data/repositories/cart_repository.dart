@@ -17,6 +17,7 @@ abstract class CartRepository {
     UpdateCartItemRequest request,
   );
   Future<RemoveCartItemResponse> removeCartItem(String itemId);
+  Future<void> clearCart();
 }
 
 class CartRepositoryImpl implements CartRepository {
@@ -99,5 +100,14 @@ class CartRepositoryImpl implements CartRepository {
                 : <String, dynamic>{});
 
     return RemoveCartItemResponse.fromJson(responseData);
+  }
+
+  @override
+  Future<void> clearCart() async {
+    try {
+      await _dio.delete(ApiConstants.cart);
+    } catch (_) {
+      // Best effort - cart state is already reset in memory
+    }
   }
 }
