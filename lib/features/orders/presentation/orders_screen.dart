@@ -16,11 +16,28 @@ class _OrdersScreenState extends State<OrdersScreen> {
   int _selectedTab = 0;
   final List<String> _tabs = ['Active', 'Past', 'Cancelled'];
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<OrderCubit>().fetchOrders();
+    });
+  }
+
   List<Order> _filteredOrders(List<Order> orders) {
     final tab = _tabs[_selectedTab];
-    if (tab == 'Active') return orders.where((o) => o.status == 'Active').toList();
-    if (tab == 'Past') return orders.where((o) => o.status == 'Delivered').toList();
-    return orders.where((o) => o.status == 'Cancelled').toList();
+    return orders.where((o) {
+      final s = o.status.trim().toLowerCase();
+      if (tab == 'Active') {
+        final isPast = s == 'delivered' || s == 'completed' || s == 'past';
+        final isCancelled = s == 'cancelled' || s == 'canceled' || s == 'failed' || s == 'refunded';
+        return !isPast && !isCancelled;
+      } else if (tab == 'Past') {
+        return s == 'delivered' || s == 'completed' || s == 'past';
+      } else {
+        return s == 'cancelled' || s == 'canceled' || s == 'failed' || s == 'refunded';
+      }
+    }).toList();
   }
 
   String _formatDate(DateTime dt) {
@@ -33,9 +50,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 
   Color _statusColor(String status) {
-    if (status == 'Cancelled') return AppColors.error;
-    if (status == 'Active' || status == 'Delivered') return const Color(0xFF4CAF50);
-    return AppColors.primaryGold;
+    final s = status.toLowerCase();
+    if (s.contains('cancel') || s.contains('fail')) return AppColors.error;
+    if (s.contains('deliver') || s.contains('complete')) return const Color(0xFF4CAF50);
+    return AppColors.primary;
   }
 
   @override
@@ -55,17 +73,17 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         'Orders History',
                         style: TextStyle(
                           fontFamily: 'Georgia',
                           fontSize: 26,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.primaryGold,
+                          color: AppColors.primary,
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Text(
+                      const Text(
                         'Your journey of royal gastronomic experiences',
                         style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
                       ),
@@ -89,7 +107,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
-                                  color: sel ? const Color(0xFF1A0E00) : AppColors.secondaryText,
+                                  color: sel ? Colors.white : AppColors.secondaryText,
                                 ),
                               ),
                             ),
@@ -101,13 +119,27 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   ),
                 ),
                 Expanded(
-                  child: filtered.isEmpty
-                      ? _buildEmptyState()
-                      : ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                          itemCount: filtered.length,
-                          itemBuilder: (_, i) => _buildOrderCard(filtered[i]),
-                        ),
+                  child: RefreshIndicator(
+                    color: AppColors.primary,
+                    backgroundColor: AppColors.surface,
+                    onRefresh: () => context.read<OrderCubit>().fetchOrders(),
+                    child: state.isLoading && state.orders.isEmpty
+                        ? const Center(
+                            child: CircularProgressIndicator(color: AppColors.primary),
+                          )
+                        : filtered.isEmpty
+                            ? ListView(
+                                children: [
+                                  SizedBox(height: MediaQuery.of(context).size.height * 0.15),
+                                  _buildEmptyState(),
+                                ],
+                              )
+                            : ListView.builder(
+                                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                                itemCount: filtered.length,
+                                itemBuilder: (_, i) => _buildOrderCard(filtered[i]),
+                              ),
+                  ),
                 ),
               ],
             ),
@@ -146,7 +178,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(_formatDate(order.orderTime),
-                    style: TextStyle(fontSize: 13, color: AppColors.secondaryText)),
+                    style: const TextStyle(fontSize: 13, color: AppColors.secondaryText)),
                 Text(order.status,
                     style: TextStyle(
                       fontSize: 13,
@@ -174,7 +206,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(displayName,
-                          style: TextStyle(
+                          style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
                               color: AppColors.primaryText),
@@ -182,14 +214,14 @@ class _OrdersScreenState extends State<OrdersScreen> {
                           overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 4),
                       Text('Total: ₹${order.total.toStringAsFixed(0)} • Pay via UPI',
-                          style: TextStyle(fontSize: 13, color: AppColors.secondaryText)),
+                          style: const TextStyle(fontSize: 13, color: AppColors.secondaryText)),
                     ],
                   ),
                 ),
               ],
             ),
           ),
-          Divider(height: 1, thickness: 1, color: AppColors.background),
+          const Divider(height: 1, thickness: 1, color: AppColors.border),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
@@ -217,15 +249,15 @@ class _OrdersScreenState extends State<OrdersScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 11),
           decoration: BoxDecoration(
-            border: Border.all(color: AppColors.primaryGold, width: 1),
+            border: Border.all(color: AppColors.primary, width: 1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Center(
             child: Text(label,
-                style: TextStyle(
+                style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.primaryGold)),
+                    color: AppColors.primary)),
           ),
         ),
       );
@@ -235,22 +267,22 @@ class _OrdersScreenState extends State<OrdersScreen> {
         decoration: BoxDecoration(
             color: AppColors.background,
             borderRadius: BorderRadius.circular(10)),
-        child: Icon(Icons.restaurant, color: AppColors.muted, size: 24),
+        child: const Icon(Icons.restaurant, color: AppColors.muted, size: 24),
       );
 
   Widget _buildEmptyState() => Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.receipt_long_outlined, size: 64, color: AppColors.muted),
+            const Icon(Icons.receipt_long_outlined, size: 64, color: AppColors.muted),
             const SizedBox(height: 16),
-            Text('No orders here yet',
+            const Text('No orders here yet',
                 style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: AppColors.primaryText)),
             const SizedBox(height: 8),
-            Text('Place your first gourmet order!',
+            const Text('Place your first gourmet order!',
                 style: TextStyle(fontSize: 14, color: AppColors.secondaryText)),
             const SizedBox(height: 28),
             GestureDetector(
@@ -258,13 +290,13 @@ class _OrdersScreenState extends State<OrdersScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
                 decoration: BoxDecoration(
-                    gradient: AppColors.goldGradient,
+                    color: AppColors.primary,
                     borderRadius: BorderRadius.circular(50)),
-                child: Text('Order Food Now',
+                child: const Text('Order Food Now',
                     style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFF1A0E00))),
+                        color: Colors.white)),
               ),
             ),
           ],
