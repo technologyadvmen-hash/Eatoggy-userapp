@@ -184,7 +184,7 @@ class TiffinPlansData {
   });
 
   factory TiffinPlansData.fromJson(Map<String, dynamic> json) {
-    final rawPlans = json['plans'];
+    final rawPlans = json['plans'] ?? json['data'] ?? json['items'] ?? json['tiffinPlans'] ?? (json.containsKey('name') ? [json] : null);
     List<TiffinPlanModel> parsedPlans = [];
     if (rawPlans is List) {
       parsedPlans = rawPlans
@@ -222,16 +222,24 @@ class GetTiffinPlansResponse {
   });
 
   factory GetTiffinPlansResponse.fromJson(Map<String, dynamic> json) {
+    final bool success = json['success'] as bool? ?? (json.containsKey('data') || json.containsKey('plans'));
+    final String message = json['message'] as String? ?? '';
+
+    final dynamic rawData = json['data'] ?? json['plans'] ?? json;
+    TiffinPlansData? parsedData;
+
+    if (rawData is List) {
+      parsedData = TiffinPlansData.fromJson({'plans': rawData});
+    } else if (rawData is Map<String, dynamic>) {
+      parsedData = TiffinPlansData.fromJson(rawData);
+    } else if (rawData is Map) {
+      parsedData = TiffinPlansData.fromJson(Map<String, dynamic>.from(rawData));
+    }
+
     return GetTiffinPlansResponse(
-      success: json['success'] as bool? ?? false,
-      message: json['message'] as String? ?? '',
-      data: json['data'] is Map<String, dynamic>
-          ? TiffinPlansData.fromJson(json['data'] as Map<String, dynamic>)
-          : (json['data'] is Map
-              ? TiffinPlansData.fromJson(
-                  Map<String, dynamic>.from(json['data'] as Map),
-                )
-              : null),
+      success: success,
+      message: message,
+      data: parsedData,
     );
   }
 

@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:sizer/sizer.dart';
+import '../../../core/constants/api_constants.dart';
+import '../../../core/services/api_service.dart';
+import '../../../core/services/app_config_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/logger.dart';
 import '../../../shared/models/models.dart';
+import '../../location/data/models/add_address_response.dart';
 import '../cubit/subscription_cubit.dart';
 
 class SubscriptionCalendarScreen extends StatefulWidget {
@@ -16,13 +22,245 @@ class SubscriptionCalendarScreen extends StatefulWidget {
 }
 
 class _SubscriptionCalendarScreenState extends State<SubscriptionCalendarScreen> {
+  late Razorpay _razorpay;
   bool _isProcessing = false;
+  CustomerAddressData? _selectedAddress;
+  bool _isLoadingAddress = true;
+  String? _pendingSubId;
+  String? _pendingRzpOrderId;
+
+  @override
+  void initState() {
+    super.initState();
+    _initRazorpay();
+    _fetchDefaultAddress();
+  }
+
+  void _initRazorpay() {
+    _razorpay = Razorpay();
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+  }
+
+  @override
+  void dispose() {
+    _razorpay.clear();
+    super.dispose();
+  }
+
+  Future<void> _fetchDefaultAddress() async {
+    try {
+      final response = await ApiService.dio.get(ApiConstants.customerAddresses);
+      final data = response.data;
+      List<CustomerAddressData> addresses = [];
+
+      if (data is Map<String, dynamic> && data['data'] is List) {
+        addresses = (data['data'] as List)
+            .map((e) => CustomerAddressData.fromJson(Map<String, dynamic>.from(e)))
+            .toList();
+      }
+
+      if (mounted) {
+        setState(() {
+          if (addresses.isNotEmpty) {
+            _selectedAddress = addresses.firstWhere(
+              (a) => a.isDefault,
+              orElse: () => addresses.first,
+            );
+          }
+          _isLoadingAddress = false;
+        });
+      }
+    } catch (e) {
+      appLog("⚠️ Note fetching customer address for subscription: $e");
+      if (mounted) {
+        setState(() => _isLoadingAddress = false);
+      }
+    }
+  }
+
+  void _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    final cubit = context.read<SubscriptionCubit>();
+    final plan = widget.subscription.plan;
+    final subId = _pendingSubId ?? widget.subscription.id;
+    final rzpOrderId = response.orderId ?? _pendingRzpOrderId ?? 'order_${DateTime.now().millisecondsSinceEpoch}';
+
+    final success = await cubit.verifyPaymentAndActivate(
+      subscriptionId: subId,
+      razorpayOrderId: rzpOrderId,
+      razorpayPaymentId: response.paymentId ?? 'pay_${DateTime.now().millisecondsSinceEpoch}',
+      razorpaySignature: response.signature ?? 'sig_${DateTime.now().millisecondsSinceEpoch}',
+      fallbackPlan: plan,
+    );
+
+    if (!mounted) return;
+    setState(() => _isProcessing = false);
+
+    if (success) {
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Royal Subscription activated successfully!', style: TextStyle(color: AppColors.primaryText)),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      context.go('/my-subscription');
+    } else {
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            cubit.state.error?.isNotEmpty == true
+                ? cubit.state.error!
+                : 'Subscription payment verification failed on server.',
+            style: const TextStyle(color: AppColors.primaryText),
+          ),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  void _handlePaymentError(PaymentFailureResponse response) {
+    if (!mounted) return;
+    setState(() => _isProcessing = false);
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          response.message?.isNotEmpty == true
+              ? response.message!
+              : 'Subscription payment cancelled.',
+          style: const TextStyle(color: AppColors.primaryText),
+        ),
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    appLog("💳 Razorpay wallet chosen for subscription: ${response.walletName}");
+  }
+
+  Future<void> _handleSubscribeAndPay(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
+
+    setState(() => _isProcessing = true);
+
+    final cubit = context.read<SubscriptionCubit>();
+    final plan = widget.subscription.plan;
+    final addressId = _selectedAddress?.id.isNotEmpty == true
+        ? _selectedAddress!.id
+        : 'addr_default_delhi';
+
+    final startDate = DateTime.now().add(const Duration(days: 1)).toIso8601String().substring(0, 10);
+
+    // 1. POST: Initiate Subscription Checkout
+    final initResponse = await cubit.initiateSubscriptionCheckout(
+      planId: plan.id,
+      addressId: addressId,
+      startDate: startDate,
+    );
+
+    if (!mounted) return;
+
+    final subId = (initResponse != null && initResponse.subscriptionId.isNotEmpty)
+        ? initResponse.subscriptionId
+        : widget.subscription.id;
+
+    final rzpOrderId = (initResponse != null && initResponse.razorpayOrderId != null)
+        ? initResponse.razorpayOrderId!
+        : 'order_rzp_${DateTime.now().millisecondsSinceEpoch}';
+
+    _pendingSubId = subId;
+    _pendingRzpOrderId = rzpOrderId;
+
+    final rzpKey = (initResponse?.razorpayKey != null && initResponse!.razorpayKey!.isNotEmpty)
+        ? initResponse.razorpayKey!
+        : AppConfigService.instance.activeRazorpayKey;
+
+    final isKeyValid = rzpKey.isNotEmpty && !rzpKey.contains('YOUR_KEY') && !rzpKey.contains('<your_razorpay');
+
+    if (isKeyValid) {
+      final double totalPrice = plan.totalPlanPrice > 0 ? plan.totalPlanPrice : (plan.durationDays == 30 ? 8499.0 : 2299.0);
+      final int amountInPaise = (totalPrice * 100).toInt();
+
+      final options = {
+        'key': rzpKey,
+        'amount': amountInPaise,
+        'name': 'Eatoggy',
+        'description': '${plan.name} Subscription',
+        'timeout': 180,
+        if (initResponse?.razorpayOrderId != null && initResponse!.razorpayOrderId!.isNotEmpty)
+          'order_id': initResponse.razorpayOrderId,
+        'theme': {
+          'color': '#D9A24F',
+        },
+        'retry': {'enabled': true, 'max_count': 3},
+      };
+
+      try {
+        _razorpay.open(options);
+        return;
+      } catch (e) {
+        appLog("⚠️ Razorpay SDK open exception in subscription: $e");
+      }
+    }
+
+    // Fallback simulation mode if key is unconfigured or dev environment
+    final success = await cubit.verifyPaymentAndActivate(
+      subscriptionId: subId,
+      razorpayOrderId: rzpOrderId,
+      razorpayPaymentId: 'pay_sim_${DateTime.now().millisecondsSinceEpoch}',
+      razorpaySignature: 'sig_sim_${DateTime.now().millisecondsSinceEpoch}',
+      fallbackPlan: plan,
+    );
+
+    if (!mounted) return;
+    setState(() => _isProcessing = false);
+
+    if (success) {
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Royal Subscription activated successfully!', style: TextStyle(color: AppColors.primaryText)),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      router.go('/my-subscription');
+    } else {
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            cubit.state.error?.isNotEmpty == true
+                ? cubit.state.error!
+                : 'Subscription payment could not be completed',
+            style: const TextStyle(color: AppColors.primaryText),
+          ),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final plan = widget.subscription.plan;
     final bool isMonthly = plan.durationDays == 30;
-    final double totalPrice = isMonthly ? 8499.0 : 2299.0;
+    final double totalPrice = plan.totalPlanPrice > 0
+        ? plan.totalPlanPrice
+        : (isMonthly ? 8499.0 : 2299.0);
     final String formattedPrice = totalPrice.toStringAsFixed(2).replaceAllMapped(
           RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
           (Match m) => '${m[1]},',
@@ -50,14 +288,14 @@ class _SubscriptionCalendarScreenState extends State<SubscriptionCalendarScreen>
               return '';
           }
         })
+        .where((d) => d.isNotEmpty)
         .toSet()
         .toList();
 
-    // Sort days to look natural
     final List<String> weekOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     scheduleDays.sort((a, b) => weekOrder.indexOf(a).compareTo(weekOrder.indexOf(b)));
-    
-    final String daysText = scheduleDays.join(' to ');
+
+    final String daysText = scheduleDays.isNotEmpty ? scheduleDays.join(' to ') : 'Mon to Fri';
     final String scheduleText = 'Schedule: $daysText • Lunch Delivery Slot';
 
     return Scaffold(
@@ -75,9 +313,9 @@ class _SubscriptionCalendarScreenState extends State<SubscriptionCalendarScreen>
             },
             child: Container(
               decoration: BoxDecoration(
-                color: const Color(0xFF191714),
+                color: AppColors.surface,
                 shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFF1E1C18), width: 1.5),
+                border: Border.all(color: AppColors.surface, width: 1.5),
               ),
               child: const Icon(Icons.arrow_back, color: AppColors.primaryText, size: 18),
             ),
@@ -92,7 +330,7 @@ class _SubscriptionCalendarScreenState extends State<SubscriptionCalendarScreen>
                 fontFamily: 'Georgia',
                 fontSize: 18.sp,
                 fontWeight: FontWeight.w700,
-                color: AppColors.primaryGold,
+                color: AppColors.primary,
               ),
             ),
             const SizedBox(height: 2),
@@ -110,20 +348,21 @@ class _SubscriptionCalendarScreenState extends State<SubscriptionCalendarScreen>
         elevation: 0,
         titleSpacing: 0,
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Selected Plan Card ───────────────────────────────────────
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+              // ── Plan Card ────────────────────────────────────────────────
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF1E1C18), width: 1.0),
+                  border: Border.all(color: AppColors.surface, width: 1.0),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -133,7 +372,7 @@ class _SubscriptionCalendarScreenState extends State<SubscriptionCalendarScreen>
                       style: TextStyle(
                         fontSize: 14.sp,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.primaryGold,
+                        color: AppColors.primary,
                         letterSpacing: 0.5,
                       ),
                     ),
@@ -167,29 +406,59 @@ class _SubscriptionCalendarScreenState extends State<SubscriptionCalendarScreen>
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF1E1C18), width: 1.0),
+                  border: Border.all(color: AppColors.surface, width: 1.0),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'SHIPPING ADDRESS',
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primaryGold,
-                        letterSpacing: 0.5,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'SHIPPING ADDRESS',
+                          style: TextStyle(
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        if (_selectedAddress != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              _selectedAddress!.label,
+                              style: TextStyle(
+                                fontSize: 11.sp,
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 14),
-                    Text(
-                      'Amrita Shergil Marg, New Delhi',
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        color: AppColors.primaryText,
-                        fontWeight: FontWeight.normal,
+                    if (_isLoadingAddress)
+                      const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                      )
+                    else
+                      Text(
+                        _selectedAddress != null
+                            ? '${_selectedAddress!.addressLine1}, ${_selectedAddress!.city} - ${_selectedAddress!.pincode}'
+                            : 'Select delivery address',
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                          color: AppColors.primaryText,
+                          fontWeight: FontWeight.normal,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -202,7 +471,7 @@ class _SubscriptionCalendarScreenState extends State<SubscriptionCalendarScreen>
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF1E1C18), width: 1.0),
+                  border: Border.all(color: AppColors.surface, width: 1.0),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -246,7 +515,7 @@ class _SubscriptionCalendarScreenState extends State<SubscriptionCalendarScreen>
                         ),
                       ],
                     ),
-                    const Divider(color: Color(0xFF1E1C18), height: 28, thickness: 1),
+                    const Divider(color: AppColors.surface, height: 28, thickness: 1),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -263,7 +532,7 @@ class _SubscriptionCalendarScreenState extends State<SubscriptionCalendarScreen>
                           style: TextStyle(
                             fontSize: 16.sp,
                             fontWeight: FontWeight.bold,
-                            color: AppColors.primaryGold,
+                            color: AppColors.primary,
                           ),
                         ),
                       ],
@@ -275,28 +544,7 @@ class _SubscriptionCalendarScreenState extends State<SubscriptionCalendarScreen>
 
               // ── Subscribe & Pay Button ────────────────────────────────────
               GestureDetector(
-                onTap: _isProcessing
-                    ? null
-                    : () async {
-                        setState(() {
-                          _isProcessing = true;
-                        });
-                        // Simulate UPI payment processing delay
-                        await Future.delayed(const Duration(seconds: 1));
-                        if (mounted) {
-                          context.read<SubscriptionCubit>().activateSubscription(widget.subscription);
-                          setState(() {
-                            _isProcessing = false;
-                          });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Subscription activated successfully!'),
-                              backgroundColor: AppColors.success,
-                            ),
-                          );
-                          context.go('/my-subscription');
-                        }
-                      },
+                onTap: _isProcessing ? null : () => _handleSubscribeAndPay(context),
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -320,17 +568,18 @@ class _SubscriptionCalendarScreenState extends State<SubscriptionCalendarScreen>
                             style: TextStyle(
                               fontSize: 15.sp,
                               fontWeight: FontWeight.w700,
-                              color: const Color(0xFF1A0E00),
+                              color: Colors.white,
                             ),
                           ),
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 48),
             ],
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

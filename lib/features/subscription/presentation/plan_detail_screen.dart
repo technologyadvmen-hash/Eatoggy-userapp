@@ -19,10 +19,12 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final bool isMonthly = widget.plan.durationDays == 30;
-    final double totalPrice = isMonthly ? 8499.0 : 2299.0;
-    final String subtitleText = isMonthly
-        ? '30 Days of bespoke dining'
-        : '7 Days of gourmet exploration';
+    final double totalPrice = widget.plan.totalPlanPrice > 0
+        ? widget.plan.totalPlanPrice
+        : (isMonthly ? 8499.0 : 2299.0);
+    final String subtitleText = widget.plan.durationDays > 0
+        ? '${widget.plan.durationDays} Days of bespoke dining'
+        : (isMonthly ? '30 Days of bespoke dining' : '7 Days of gourmet exploration');
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -40,7 +42,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
                 fontFamily: 'Georgia',
                 fontSize: 18.sp,
                 fontWeight: FontWeight.w700,
-                color: AppColors.primaryGold,
+                color: AppColors.primary,
               ),
             ),
             const SizedBox(height: 2),
@@ -58,9 +60,10 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
         elevation: 0,
         titleSpacing: 0,
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -71,7 +74,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF1E1C18), width: 1.0),
+                  border: Border.all(color: AppColors.surface, width: 1.0),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -81,12 +84,12 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
                       style: TextStyle(
                         fontSize: 14.sp,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.primaryGold,
+                        color: AppColors.primary,
                         letterSpacing: 0.5,
                       ),
                     ),
                     const SizedBox(height: 16),
-                    _buildBenefitItem('Premium gold-insulated meal delivery'),
+                    _buildBenefitItem('Premium express-insulated meal delivery'),
                     _buildBenefitItem('Complete meal control - pause anytime'),
                     _buildBenefitItem('Zero delivery charges on all ${widget.plan.totalMeals} meals'),
                   ],
@@ -100,7 +103,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
                 style: TextStyle(
                   fontSize: 15.sp,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.primaryGold,
+                  color: AppColors.primary,
                 ),
               ),
               const SizedBox(height: 12),
@@ -124,7 +127,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF1E1C18), width: 1.0),
+                  border: Border.all(color: AppColors.surface, width: 1.0),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -134,7 +137,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
                       style: TextStyle(
                         fontSize: 14.sp,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.primaryGold,
+                        color: AppColors.primary,
                         letterSpacing: 0.5,
                       ),
                     ),
@@ -180,7 +183,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
                         ),
                       ],
                     ),
-                    const Divider(color: Color(0xFF1E1C18), height: 28, thickness: 1),
+                    const Divider(color: AppColors.surface, height: 28, thickness: 1),
                     Text(
                       '*Pause anytime. Unused meals credited back to next cycle.',
                       style: TextStyle(
@@ -203,7 +206,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   decoration: BoxDecoration(
-                    gradient: AppColors.goldGradient,
+                    color: AppColors.primary,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Center(
@@ -212,18 +215,19 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
                       style: TextStyle(
                         fontSize: 15.sp,
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFF1A0E00),
+                        color: Colors.white,
                       ),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 48),
             ],
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildBenefitItem(String benefit) {
@@ -236,7 +240,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
             '✓  ',
             style: TextStyle(
               fontSize: 14.sp,
-              color: AppColors.primaryGold,
+              color: AppColors.primary,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -264,7 +268,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? AppColors.primaryGold : const Color(0xFF1E1C18),
+            color: isSelected ? AppColors.primary : AppColors.surface,
             width: 1.5,
           ),
         ),
@@ -274,7 +278,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
             style: TextStyle(
               fontSize: 14.sp,
               fontWeight: FontWeight.bold,
-              color: isSelected ? AppColors.primaryGold : AppColors.secondaryText,
+              color: isSelected ? AppColors.primary : AppColors.secondaryText,
             ),
           ),
         ),
