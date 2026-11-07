@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sizer/sizer.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/models.dart';
 import '../../cart/cubit/cart_cubit.dart';
+
+import '../data/repositories/offers_repository.dart';
 
 class OffersScreen extends StatefulWidget {
   const OffersScreen({super.key});
@@ -15,12 +18,15 @@ class OffersScreen extends StatefulWidget {
 
 class _OffersScreenState extends State<OffersScreen> {
   final TextEditingController _couponController = TextEditingController();
+  final OffersRepository _offersRepository = OffersRepositoryImpl();
   String? _errorMessage;
+  bool _isApplying = false;
+  bool _isLoadingOffers = false;
 
-  // Custom premium mockup coupons
+  // Custom fallback premium coupons
   static const Coupon _royalTreat = Coupon(
     code: 'ROYALTREAT50',
-    discountPercent: 14.33, // 14.33% of 349 is approx 50.00 saved
+    discountPercent: 14.33,
     maxDiscount: 50,
     minOrderValue: 100,
     description: 'Flat ₹50 saved on your current box.',
@@ -38,14 +44,41 @@ class _OffersScreenState extends State<OffersScreen> {
 
   static const Coupon _freeDeluxe = Coupon(
     code: 'FREEDELUXE',
-    discountPercent: 11.46, // ~40.00 saved on 349 subtotal
+    discountPercent: 11.46,
     maxDiscount: 40,
     minOrderValue: 0,
-    description: 'Free delivery on all premium bespoke gourmet boxes over Delhi NCR.',
+    description: 'Free delivery on all premium bespoke gourmet boxes.',
     expiryDate: 'Expires in 7 days',
   );
 
-  final List<Coupon> _mockCoupons = [_festive60, _freeDeluxe];
+  List<Coupon> _availableCoupons = [_royalTreat, _festive60, _freeDeluxe];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchOffers();
+  }
+
+  Future<void> _fetchOffers() async {
+    setState(() => _isLoadingOffers = true);
+    try {
+      final remote = await _offersRepository.getOffers();
+      if (mounted && remote.isNotEmpty) {
+        // Merge remote offers with luxury fallback vouchers (avoid duplicate codes)
+        final existingCodes = remote.map((c) => c.code.toUpperCase()).toSet();
+        final combined = [
+          ...remote,
+          ...[_royalTreat, _festive60, _freeDeluxe].where((c) => !existingCodes.contains(c.code.toUpperCase())),
+        ];
+        setState(() {
+          _availableCoupons = combined;
+          _isLoadingOffers = false;
+        });
+        return;
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _isLoadingOffers = false);
+  }
 
   @override
   void dispose() {
@@ -53,17 +86,198 @@ class _OffersScreenState extends State<OffersScreen> {
     super.dispose();
   }
 
-  void _applyCustomCoupon(Coupon coupon, CartState cartState) {
-    if (cartState.subtotal < coupon.minOrderValue) {
+  Future<void> _applyCustomCoupon(Coupon coupon, CartState cartState) async {
+    if (cartState.items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Your cart is empty! Add food items to your cart first to apply vouchers.'),
+          backgroundColor: Color(0xFFC62828),
+          duration: Duration(seconds: 2),
+        ),
+      );
       setState(() {
-        _errorMessage = 'Min. Order Value of ₹${coupon.minOrderValue.toInt()} is required!';
+        _errorMessage = 'Add food items to your cart first to apply vouchers.';
       });
       return;
     }
-    context.read<CartCubit>().applyCoupon(coupon);
+
+    if (cartState.subtotal < coupon.minOrderValue) {
+      final deficit = (coupon.minOrderValue - cartState.subtotal).ceil();
+      final msg = 'Min. Order Value of ₹${coupon.minOrderValue.toInt()} is required! Add ₹$deficit more to apply.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: const Color(0xFFC62828),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      setState(() {
+        _errorMessage = msg;
+      });
+      return;
+    }
+
     setState(() {
+      _isApplying = true;
       _errorMessage = null;
     });
+
+    try {
+      // Validate with POST /api/offers/apply-coupon (if user is authenticated)
+      final response = await _offersRepository.applyCoupon(coupon.code);
+      if (response != null &&
+          response['success'] == false &&
+          response['message'] != null &&
+          !response['message'].toString().toLowerCase().contains('token')) {
+        final err = response['message']?.toString() ?? 'Coupon cannot be applied';
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(err), backgroundColor: const Color(0xFFC62828)),
+          );
+          setState(() {
+            _isApplying = false;
+            _errorMessage = err;
+          });
+        }
+        return;
+      }
+    } catch (_) {
+      // Fallback gracefully to client validation
+    }
+
+    if (!mounted) return;
+    context.read<CartCubit>().applyCoupon(coupon);
+    setState(() {
+      _isApplying = false;
+      _errorMessage = null;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Color(0xFF4CAF50)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                "'${coupon.code}' applied successfully!",
+                style: const TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: AppColors.surface,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+
+    if (Navigator.of(context).canPop()) {
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted && Navigator.of(context).canPop()) {
+          context.pop();
+        }
+      });
+    }
+  }
+
+  Future<void> _applyCouponByCode(String code, CartState cartState) async {
+    final cleanCode = code.trim().toUpperCase();
+    if (cleanCode.isEmpty) return;
+
+    if (cartState.items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Your cart is empty! Add food items to your cart first to apply vouchers.'),
+          backgroundColor: Color(0xFFC62828),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      setState(() {
+        _errorMessage = 'Add food items to your cart first to apply vouchers.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isApplying = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final response = await _offersRepository.applyCoupon(cleanCode);
+      if (response != null && response['success'] == true) {
+        final discountVal = (response['discount'] as num?)?.toDouble() ?? 50.0;
+        final coupon = Coupon(
+          code: cleanCode,
+          discountPercent: 100.0,
+          maxDiscount: discountVal,
+          minOrderValue: 0,
+          description: response['message']?.toString() ?? 'Special promo coupon discount applied',
+          expiryDate: 'Applied',
+        );
+        if (mounted) {
+          context.read<CartCubit>().applyCoupon(coupon);
+          setState(() {
+            _isApplying = false;
+            _errorMessage = null;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Color(0xFF4CAF50)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      "Coupon '$cleanCode' applied successfully!",
+                      style: const TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: AppColors.surface,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          if (Navigator.of(context).canPop()) {
+            Future.delayed(const Duration(milliseconds: 300), () {
+              if (mounted && Navigator.of(context).canPop()) {
+                context.pop();
+              }
+            });
+          }
+        }
+        return;
+      }
+    } catch (_) {}
+
+    // Check in local list
+    final match = _availableCoupons.firstWhere(
+      (c) => c.code.toUpperCase() == cleanCode,
+      orElse: () => const Coupon(
+        code: '',
+        discountPercent: 0,
+        maxDiscount: 0,
+        minOrderValue: 0,
+        description: '',
+        expiryDate: '',
+      ),
+    );
+
+    if (match.code.isNotEmpty) {
+      await _applyCustomCoupon(match, cartState);
+    } else {
+      const err = "Invalid coupon code! Try 'ROYALTREAT50' or 'FESTIVE60'";
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(err), backgroundColor: Color(0xFFC62828)),
+        );
+        setState(() {
+          _isApplying = false;
+          _errorMessage = err;
+        });
+      }
+    }
   }
 
   @override
@@ -85,33 +299,36 @@ class _OffersScreenState extends State<OffersScreen> {
                   // 1. Header with back button
                   Row(
                     children: [
-                      CircleAvatar(
-                        backgroundColor: const Color(0xFF161614),
-                        radius: 20.sp,
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.border, width: 1.2),
+                        ),
                         child: IconButton(
-                          icon: Icon(Icons.arrow_back_ios_new, color: const Color(0xFFD9A24F), size: 14.sp),
+                          icon: Icon(Icons.arrow_back_ios_new, color: AppColors.primary, size: 14.sp),
                           onPressed: () => Navigator.of(context).pop(),
                         ),
                       ),
                       SizedBox(width: 4.w),
                       Text(
                         'Offers & Coupons',
-                        style: GoogleFonts.playfairDisplay(
-                          color: const Color(0xFFF1CC8A),
+                        style: GoogleFonts.outfit(
+                          color: AppColors.primaryText,
                           fontSize: 22.sp,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ],
                   ),
-                  SizedBox(height: 4.h),
+                  SizedBox(height: 3.5.h),
 
                   // 2. Coupon input area
                   Text(
                     'APPLY COUPON CODE',
                     style: GoogleFonts.outfit(
-                      color: const Color(0xFFD9A24F),
-                      fontSize: 11.sp,
+                      color: AppColors.primary,
+                      fontSize: 12.sp,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1.5,
                     ),
@@ -123,23 +340,23 @@ class _OffersScreenState extends State<OffersScreen> {
                         child: Container(
                           height: 6.5.h,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF161614),
+                            color: Colors.white,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFF2C2721), width: 1.2),
+                            border: Border.all(color: AppColors.border, width: 1.2),
                           ),
                           padding: EdgeInsets.symmetric(horizontal: 4.w),
                           alignment: Alignment.centerLeft,
                           child: TextField(
                             controller: _couponController,
-                            style: GoogleFonts.inter(
-                              color: Colors.white,
+                            style: GoogleFonts.outfit(
+                              color: AppColors.primaryText,
                               fontSize: 15.sp, // Strictly between 14.sp to 18.sp
                               fontWeight: FontWeight.w600,
                             ),
                             decoration: InputDecoration(
                               hintText: 'Enter coupon code',
                               hintStyle: GoogleFonts.inter(
-                                color: const Color(0xFF8E8A82),
+                                color: AppColors.secondaryText,
                                 fontSize: 14.sp,
                               ),
                               border: InputBorder.none,
@@ -150,38 +367,43 @@ class _OffersScreenState extends State<OffersScreen> {
                       ),
                       SizedBox(width: 3.w),
                       GestureDetector(
-                        onTap: () {
-                          final text = _couponController.text.trim().toUpperCase();
-                          if (text.isEmpty) return;
-                          
-                          if (text == 'ROYALTREAT50') {
-                            _applyCustomCoupon(_royalTreat, cartState);
-                          } else if (text == 'FESTIVE60') {
-                            _applyCustomCoupon(_festive60, cartState);
-                          } else if (text == 'FREEDELUXE') {
-                            _applyCustomCoupon(_freeDeluxe, cartState);
-                          } else {
-                            setState(() {
-                              _errorMessage = 'Invalid coupon code!';
-                            });
-                          }
-                        },
+                        onTap: _isApplying
+                            ? null
+                            : () => _applyCouponByCode(_couponController.text, cartState),
                         child: Container(
                           height: 6.5.h,
                           padding: EdgeInsets.symmetric(horizontal: 6.w),
                           decoration: BoxDecoration(
-                            gradient: AppColors.goldGradient,
+                            gradient: _isApplying ? null : AppColors.redGradient,
+                            color: _isApplying ? AppColors.muted : null,
                             borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primary.withValues(alpha: 0.25),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
                           ),
                           alignment: Alignment.center,
-                          child: Text(
-                            'APPLY',
-                            style: GoogleFonts.inter(
-                              color: Colors.black,
-                              fontSize: 14.sp, // Strictly between 14.sp to 18.sp
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          child: _isApplying
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  'APPLY',
+                                  style: GoogleFonts.outfit(
+                                    color: Colors.white,
+                                    fontSize: 14.sp, // Strictly between 14.sp to 18.sp
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.1,
+                                  ),
+                                ),
                         ),
                       ),
                     ],
@@ -193,25 +415,25 @@ class _OffersScreenState extends State<OffersScreen> {
                     Container(
                       padding: EdgeInsets.all(4.w),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0F2016),
+                        color: const Color(0xFFFFF7F8),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFF1E3F2B), width: 1),
+                        border: Border.all(color: const Color(0xFFFECACA), width: 1.2),
                       ),
                       child: Row(
                         children: [
-                          Icon(
-                            Icons.check_circle_outline,
-                            color: const Color(0xFF4CAF50),
-                            size: 16.sp,
+                          const Icon(
+                            Icons.check_circle_rounded,
+                            color: AppColors.primary,
+                            size: 20,
                           ),
                           SizedBox(width: 3.w),
                           Expanded(
                             child: Text(
                               '${appliedCoupon.code} applied! ₹${cartState.discountAmount.toInt()} saved on your current box.',
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFF4CAF50),
+                              style: GoogleFonts.outfit(
+                                color: AppColors.primary,
                                 fontSize: 14.sp, // Strictly between 14.sp to 18.sp
-                                fontWeight: FontWeight.w500,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
@@ -232,96 +454,140 @@ class _OffersScreenState extends State<OffersScreen> {
                     SizedBox(height: 2.h),
                   ],
 
-                  SizedBox(height: 2.h),
+                  SizedBox(height: 1.h),
 
                   // 3. Available Coupons Section
                   Text(
                     'Available Coupons',
-                    style: GoogleFonts.playfairDisplay(
-                      color: Colors.white,
-                      fontSize: 16.sp,
+                    style: GoogleFonts.outfit(
+                      color: AppColors.primaryText,
+                      fontSize: 17.sp,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   SizedBox(height: 2.h),
 
                   Expanded(
-                    child: ListView.builder(
-                      itemCount: _mockCoupons.length,
-                      itemBuilder: (context, index) {
-                        final coupon = _mockCoupons[index];
+                    child: _isLoadingOffers
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                              color: AppColors.primary,
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: _availableCoupons.length,
+                            itemBuilder: (context, index) {
+                        final coupon = _availableCoupons[index];
                         final isThisApplied = appliedCoupon?.code == coupon.code;
                         final isFestive = coupon.code == 'FESTIVE60';
 
-                        return Container(
-                          margin: EdgeInsets.only(bottom: 2.h),
-                          padding: EdgeInsets.all(4.w),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF161614),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: const Color(0xFF2C2721),
-                              width: 1.2,
+                        return GestureDetector(
+                          onTap: () {
+                            if (!isThisApplied) {
+                              _applyCustomCoupon(coupon, cartState);
+                            }
+                          },
+                          child: Container(
+                            margin: EdgeInsets.only(bottom: 2.h),
+                            padding: EdgeInsets.all(4.w),
+                            decoration: BoxDecoration(
+                              color: isThisApplied ? const Color(0xFFFFF7F8) : Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isThisApplied ? const Color(0xFFFECACA) : AppColors.border,
+                                width: 1.2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.03),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  // Badge
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      color: isFestive
-                                          ? const Color(0x3BFF3333)
-                                          : const Color(0x3BD9A24F),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 0.5.h),
-                                    child: Text(
-                                      isFestive ? '60% OFF' : 'FREE DELIVERY',
-                                      style: GoogleFonts.inter(
-                                        color: isFestive
-                                            ? const Color(0xFFFF5252)
-                                            : const Color(0xFFD9A24F),
-                                        fontSize: 11.sp,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                  // Apply/Applied button
-                                  GestureDetector(
-                                    onTap: () => _applyCustomCoupon(coupon, cartState),
-                                    child: Container(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    // Badge
+                                    Container(
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF2C2721),
-                                        borderRadius: BorderRadius.circular(8),
+                                        color: isFestive
+                                            ? const Color(0x28DC2626)
+                                            : const Color(0x1ADC2626),
+                                        borderRadius: BorderRadius.circular(6),
                                       ),
-                                      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 0.8.h),
+                                      padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 0.5.h),
                                       child: Text(
-                                        isThisApplied ? 'Applied' : 'Apply',
-                                        style: GoogleFonts.inter(
-                                          color: isThisApplied
-                                              ? const Color(0xFF4CAF50)
-                                              : const Color(0xFFD9A24F),
-                                          fontSize: 14.sp, // Strictly between 14.sp to 18.sp
+                                        isFestive ? '60% OFF' : 'SPECIAL OFFER',
+                                        style: GoogleFonts.outfit(
+                                          color: AppColors.primary,
+                                          fontSize: 11.sp,
                                           fontWeight: FontWeight.bold,
+                                          letterSpacing: 0.8,
                                         ),
                                       ),
                                     ),
-                                  ),
-                                ],
-                              ),
+                                    // Apply/Remove button
+                                    GestureDetector(
+                                      onTap: () {
+                                        if (isThisApplied) {
+                                          context.read<CartCubit>().removeCoupon();
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Coupon removed'),
+                                              backgroundColor: AppColors.surface,
+                                              duration: Duration(seconds: 1),
+                                            ),
+                                          );
+                                        } else {
+                                          _applyCustomCoupon(coupon, cartState);
+                                        }
+                                      },
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          gradient: isThisApplied ? null : AppColors.redGradient,
+                                          color: isThisApplied
+                                              ? const Color(0xFFFEE2E2)
+                                              : null,
+                                          borderRadius: BorderRadius.circular(8),
+                                          boxShadow: isThisApplied
+                                              ? null
+                                              : [
+                                                  BoxShadow(
+                                                    color: AppColors.primary.withValues(alpha: 0.25),
+                                                    blurRadius: 6,
+                                                    offset: const Offset(0, 2),
+                                                  ),
+                                                ],
+                                        ),
+                                        padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 0.8.h),
+                                        child: Text(
+                                          isThisApplied ? 'Remove' : 'Apply',
+                                          style: GoogleFonts.outfit(
+                                            color: isThisApplied
+                                                ? AppColors.primary
+                                                : Colors.white,
+                                            fontSize: 13.sp,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               SizedBox(height: 1.5.h),
                               
                               // Coupon Code Title
                               Text(
                                 coupon.code,
-                                style: GoogleFonts.playfairDisplay(
-                                  color: Colors.white,
+                                style: GoogleFonts.outfit(
+                                  color: AppColors.primaryText,
                                   fontSize: 16.sp, // Strictly between 14.sp to 18.sp
                                   fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.8,
                                 ),
                               ),
                               SizedBox(height: 1.2.h),
@@ -330,14 +596,14 @@ class _OffersScreenState extends State<OffersScreen> {
                               Text(
                                 coupon.description,
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFF8E8A82),
+                                  color: AppColors.secondaryText,
                                   fontSize: 14.sp, // Strictly between 14.sp to 18.sp
                                   height: 1.35,
                                 ),
                               ),
                               SizedBox(height: 2.h),
                               
-                              const Divider(color: Color(0xFF2C2721), height: 1),
+                              const Divider(color: AppColors.border, height: 1),
                               SizedBox(height: 1.5.h),
 
                               // Details Footer Row
@@ -347,14 +613,14 @@ class _OffersScreenState extends State<OffersScreen> {
                                   Text(
                                     'Min. Order: ₹${coupon.minOrderValue.toInt()}',
                                     style: GoogleFonts.inter(
-                                      color: const Color(0xFF8E8A82),
+                                      color: AppColors.secondaryText,
                                       fontSize: 13.sp,
                                     ),
                                   ),
                                   Text(
                                     coupon.expiryDate,
                                     style: GoogleFonts.inter(
-                                      color: const Color(0xFFD9A24F),
+                                      color: AppColors.primary,
                                       fontSize: 13.sp,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -363,8 +629,9 @@ class _OffersScreenState extends State<OffersScreen> {
                               ),
                             ],
                           ),
-                        );
-                      },
+                        ),
+                      );
+                    },
                     ),
                   ),
                 ],
