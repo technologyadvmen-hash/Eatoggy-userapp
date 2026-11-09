@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/constants/app_constants.dart';
 import '../../../shared/models/models.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:sizer/sizer.dart';
+
+import '../data/repositories/support_repository.dart';
 
 class TicketDetailScreen extends StatefulWidget {
   final SupportTicket ticket;
@@ -15,22 +18,44 @@ class TicketDetailScreen extends StatefulWidget {
 class _TicketDetailScreenState extends State<TicketDetailScreen> {
   late List<Map<String, dynamic>> _messages;
   final _msgController = TextEditingController();
+  final SupportRepository _supportRepository = SupportRepositoryImpl();
 
   @override
   void initState() {
     super.initState();
     _messages = List.from(widget.ticket.messages);
+    _loadTicketDetails();
   }
 
-  void _sendMessage() {
-    if (_msgController.text.isEmpty) return;
+  Future<void> _loadTicketDetails() async {
+    try {
+      final updated = await _supportRepository.getTicketDetails(widget.ticket.id);
+      if (mounted && updated.messages.isNotEmpty) {
+        setState(() {
+          _messages = List.from(updated.messages);
+        });
+      }
+    } catch (_) {}
+  }
+
+  void _sendMessage() async {
+    final text = _msgController.text.trim();
+    if (text.isEmpty) return;
+    _msgController.clear();
     setState(() {
       _messages.add({
         'sender': 'User',
-        'text': _msgController.text,
+        'text': text,
+        'timestamp': DateTime.now().toIso8601String(),
       });
-      _msgController.clear();
     });
+
+    try {
+      final success = await _supportRepository.replyToTicket(ticketId: widget.ticket.id, message: text);
+      if (success && mounted) {
+        _loadTicketDetails();
+      }
+    } catch (_) {}
   }
 
   @override
@@ -41,25 +66,41 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(widget.ticket.id, style: theme.textTheme.headlineMedium?.copyWith(fontSize: 20)),
         backgroundColor: AppColors.background,
-        iconTheme: const IconThemeData(color: AppColors.primaryText),
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.primaryText),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          widget.ticket.displayId, 
+          style: GoogleFonts.outfit(
+            fontSize: 14.sp,
+            fontWeight: FontWeight.w600,
+            color: AppColors.primaryText,
+          ),
+        ),
+        centerTitle: true,
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(AppConstants.p24),
+          padding: EdgeInsets.all(5.w),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'Issue: ${widget.ticket.issue}',
-                style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
+                style: GoogleFonts.inter(
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primaryText,
+                ),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 2.h),
               Expanded(
                 child: ListView.builder(
                   itemCount: _messages.length,
@@ -72,13 +113,17 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                         margin: const EdgeInsets.only(bottom: 12),
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         decoration: BoxDecoration(
-                          color: isUser ? AppColors.primaryGold.withOpacity(0.15) : AppColors.surface,
+                          color: isUser ? AppColors.primary.withValues(alpha: 0.15) : AppColors.surface,
                           borderRadius: BorderRadius.circular(12),
-                          border: isUser ? Border.all(color: AppColors.primaryGold) : null,
+                          border: isUser ? Border.all(color: AppColors.primary) : null,
                         ),
                         child: Text(
                           msg['text'],
-                          style: TextStyle(color: isUser ? AppColors.primaryGold : AppColors.primaryText),
+                          style: GoogleFonts.inter(
+                            fontSize: 12.sp,
+                            color: isUser ? AppColors.primary : AppColors.primaryText,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     );
@@ -105,7 +150,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                   ),
                   const SizedBox(width: 12),
                   CircleAvatar(
-                    backgroundColor: AppColors.primaryGold,
+                    backgroundColor: AppColors.primary,
                     child: IconButton(
                       icon: const Icon(Icons.send, color: AppColors.background),
                       onPressed: _sendMessage,
