@@ -22,7 +22,7 @@ class ProfileLoaded extends ProfileState {
 
   const ProfileLoaded({
     required this.customer,
-    required this.message,
+    this.message = '',
   });
 
   @override

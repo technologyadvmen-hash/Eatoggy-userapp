@@ -14,3 +14,20 @@ class FetchProfileEvent extends ProfileEvent {
 class RefreshProfileEvent extends ProfileEvent {
   const RefreshProfileEvent();
 }
+
+class UpdateCustomerProfileEvent extends ProfileEvent {
+  final String? name;
+  final String? email;
+  final String? dietaryPreference;
+  final String? avatar;
+
+  const UpdateCustomerProfileEvent({
+    this.name,
+    this.email,
+    this.dietaryPreference,
+    this.avatar,
+  });
+
+  @override
+  List<Object?> get props => [name, email, dietaryPreference, avatar];
+}
