@@ -1,0 +1,410 @@
+[
+  {
+    "category": "Auth & Profile",
+    "method": "POST",
+    "path": "/api/customer-auth/send-otp",
+    "status": 200,
+    "state": "WORKING_OK",
+    "body": "{\"success\":true,\"message\":\"OTP sent successfully\",\"data\":null}"
+  },
+  {
+    "category": "Auth & Profile",
+    "method": "POST",
+    "path": "/api/customer-auth/verify-otp",
+    "status": 400,
+    "state": "VALIDATION_ERROR_400",
+    "body": "Invalid or expired OTP"
+  },
+  {
+    "category": "Auth & Profile",
+    "method": "POST",
+    "path": "/api/customer/auth/signup",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: POST /api/customer/auth/signup"
+  },
+  {
+    "category": "Auth & Profile",
+    "method": "POST",
+    "path": "/api/customer/auth/login",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: POST /api/customer/auth/login"
+  },
+  {
+    "category": "Auth & Profile",
+    "method": "GET",
+    "path": "/api/customer-auth/me",
+    "status": 200,
+    "state": "WORKING_OK",
+    "body": "{\"success\":true,\"message\":\"Customer profile retrieved\",\"data\":{\"customer\":{\"id\":\"6aba2d5296d118c6b8704eed\",\"mobile\":\"883"
+  },
+  {
+    "category": "Auth & Profile",
+    "method": "PATCH",
+    "path": "/api/customer-auth/me",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: PATCH /api/customer-auth/me"
+  },
+  {
+    "category": "Auth & Profile",
+    "method": "GET",
+    "path": "/api/customer/dashboard",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: GET /api/customer/dashboard"
+  },
+  {
+    "category": "Auth & Profile",
+    "method": "POST",
+    "path": "/api/customer-auth/logout",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: POST /api/customer-auth/logout"
+  },
+  {
+    "category": "Auth & Profile",
+    "method": "DELETE",
+    "path": "/api/customer-auth/account",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: DELETE /api/customer-auth/account"
+  },
+  {
+    "category": "Addresses & Location",
+    "method": "GET",
+    "path": "/api/serviceability/check?lat=28.4595&lng=77.0266",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: GET /api/serviceability/check?lat=28.4595&lng=77.0266"
+  },
+  {
+    "category": "Addresses & Location",
+    "method": "GET",
+    "path": "/api/customers/addresses",
+    "status": 200,
+    "state": "WORKING_OK",
+    "body": "{\"success\":true,\"message\":\"Addresses fetched successfully\",\"data\":[{\"_id\":\"6aba4628d4360b9e1933b2dc\",\"customerId\":\"6aba2"
+  },
+  {
+    "category": "Addresses & Location",
+    "method": "POST",
+    "path": "/api/customers/addresses",
+    "status": 201,
+    "state": "WORKING_OK",
+    "body": "{\"success\":true,\"message\":\"Address added successfully\",\"data\":{\"customerId\":\"6aba2d5296d118c6b8704eed\",\"name\":\"Home\",\"mo"
+  },
+  {
+    "category": "Discovery & Menus",
+    "method": "GET",
+    "path": "/api/categories",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: GET /api/categories"
+  },
+  {
+    "category": "Discovery & Menus",
+    "method": "GET",
+    "path": "/api/customer/categories",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: GET /api/customer/categories"
+  },
+  {
+    "category": "Discovery & Menus",
+    "method": "GET",
+    "path": "/api/customers/discovery/banners",
+    "status": 200,
+    "state": "WORKING_OK",
+    "body": "{\"success\":true,\"data\":[]}"
+  },
+  {
+    "category": "Discovery & Menus",
+    "method": "GET",
+    "path": "/api/banners",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: GET /api/banners"
+  },
+  {
+    "category": "Discovery & Menus",
+    "method": "GET",
+    "path": "/api/customers/discovery/collections",
+    "status": 200,
+    "state": "WORKING_OK",
+    "body": "{\"success\":true,\"data\":[{\"_id\":\"6ab2426a69d4d88a0561e33e\",\"name\":\"North Indian\",\"sortOrder\":0},{\"_id\":\"6ab26e1d389aa9a7c"
+  },
+  {
+    "category": "Discovery & Menus",
+    "method": "GET",
+    "path": "/api/collections",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: GET /api/collections"
+  },
+  {
+    "category": "Discovery & Menus",
+    "method": "GET",
+    "path": "/api/customers/discovery/search?q=paneer",
+    "status": 200,
+    "state": "WORKING_OK",
+    "body": "{\"success\":true,\"data\":{\"restaurants\":[],\"menuItems\":[{\"_id\":\"6ab65162af26cce03ad12f76\",\"restaurantId\":{\"_id\":\"6ab257338"
+  },
+  {
+    "category": "Discovery & Menus",
+    "method": "GET",
+    "path": "/api/customers/discovery/gourmet",
+    "status": 200,
+    "state": "WORKING_OK",
+    "body": "{\"success\":true,\"data\":[{\"_id\":\"6ab65c7913bbd7f386141b75\",\"restaurantId\":{\"_id\":\"6ab25733827cd436a4bb1d06\",\"city\":\"Gurug"
+  },
+  {
+    "category": "Discovery & Menus",
+    "method": "GET",
+    "path": "/api/customers/discovery/restaurants",
+    "status": 200,
+    "state": "WORKING_OK",
+    "body": "{\"success\":true,\"message\":\"Restaurants fetched successfully\",\"data\":[{\"operatingHours\":{\"open\":\"09:00\",\"close\":\"22:00\"},"
+  },
+  {
+    "category": "Offers & Config",
+    "method": "GET",
+    "path": "/api/offers",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: GET /api/offers"
+  },
+  {
+    "category": "Offers & Config",
+    "method": "POST",
+    "path": "/api/offers/apply-coupon",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: POST /api/offers/apply-coupon"
+  },
+  {
+    "category": "Offers & Config",
+    "method": "GET",
+    "path": "/api/public/config",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: GET /api/public/config"
+  },
+  {
+    "category": "Cart & Orders",
+    "method": "GET",
+    "path": "/api/cart",
+    "status": 200,
+    "state": "WORKING_OK",
+    "body": "{\"success\":true,\"message\":\"Cart fetched successfully\",\"data\":{\"_id\":\"6aba311296d118c6b8704eee\",\"customerId\":\"6aba2d5296d"
+  },
+  {
+    "category": "Cart & Orders",
+    "method": "POST",
+    "path": "/api/cart/items",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Menu item not found"
+  },
+  {
+    "category": "Cart & Orders",
+    "method": "POST",
+    "path": "/api/checkout/initiate",
+    "status": 400,
+    "state": "VALIDATION_ERROR_400",
+    "body": "Selected delivery address not found"
+  },
+  {
+    "category": "Cart & Orders",
+    "method": "POST",
+    "path": "/api/checkout/verify-payment",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: POST /api/checkout/verify-payment"
+  },
+  {
+    "category": "Cart & Orders",
+    "method": "GET",
+    "path": "/api/customers/orders",
+    "status": 200,
+    "state": "WORKING_OK",
+    "body": "{\"success\":true,\"message\":\"Customer orders retrieved successfully\",\"data\":[]}"
+  },
+  {
+    "category": "Cart & Orders",
+    "method": "GET",
+    "path": "/api/customers/orders/ORD-TEST-123",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Resource not found"
+  },
+  {
+    "category": "Cart & Orders",
+    "method": "POST",
+    "path": "/api/customers/orders/ORD-TEST-123/cancel",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: POST /api/customers/orders/ORD-TEST-123/cancel"
+  },
+  {
+    "category": "Cart & Orders",
+    "method": "GET",
+    "path": "/api/customers/orders/tracking/ORD-TEST-123",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: GET /api/customers/orders/tracking/ORD-TEST-123"
+  },
+  {
+    "category": "Cart & Orders",
+    "method": "GET",
+    "path": "/api/customers/reviews",
+    "status": 200,
+    "state": "WORKING_OK",
+    "body": "{\"success\":true,\"data\":[]}"
+  },
+  {
+    "category": "Subscriptions",
+    "method": "GET",
+    "path": "/api/customers/tiffin-plans",
+    "status": 200,
+    "state": "WORKING_OK",
+    "body": "{\"success\":true,\"message\":\"Tiffin plans retrieved successfully\",\"data\":{\"plans\":[{\"_id\":\"6abba001b589c5998f050b85\",\"rest"
+  },
+  {
+    "category": "Subscriptions",
+    "method": "GET",
+    "path": "/api/customers/subscriptions",
+    "status": 200,
+    "state": "WORKING_OK",
+    "body": "{\"success\":true,\"message\":\"Customer subscriptions retrieved\",\"data\":{\"subscriptions\":[]}}"
+  },
+  {
+    "category": "Subscriptions",
+    "method": "GET",
+    "path": "/api/customer/starter-pack",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: GET /api/customer/starter-pack"
+  },
+  {
+    "category": "Support Tickets",
+    "method": "GET",
+    "path": "/api/support/tickets/my",
+    "status": 200,
+    "state": "WORKING_OK",
+    "body": "{\"success\":true,\"data\":[{\"_id\":\"6aba442dd4360b9e1933b2d1\",\"ticketNumber\":\"TKT-20260928-9850\",\"userType\":\"CUSTOMER\",\"user"
+  },
+  {
+    "category": "Support Tickets",
+    "method": "POST",
+    "path": "/api/support/tickets",
+    "status": 201,
+    "state": "WORKING_OK",
+    "body": "{\"success\":true,\"message\":\"Support ticket created successfully\",\"data\":{\"ticketNumber\":\"TKT-20260930-2457\",\"userType\":\"C"
+  },
+  {
+    "category": "Notifications & Wallet",
+    "method": "POST",
+    "path": "/api/notifications/subscribe",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: POST /api/notifications/subscribe"
+  },
+  {
+    "category": "Notifications & Wallet",
+    "method": "GET",
+    "path": "/api/customer/wallet",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: GET /api/customer/wallet"
+  },
+  {
+    "category": "Notifications & Wallet",
+    "method": "POST",
+    "path": "/api/customer/wallet/add-money",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: POST /api/customer/wallet/add-money"
+  },
+  {
+    "category": "Notifications & Wallet",
+    "method": "GET",
+    "path": "/api/customer/notifications",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: GET /api/customer/notifications"
+  },
+  {
+    "category": "Extra Services",
+    "method": "POST",
+    "path": "/api/customer/ai-chat",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: POST /api/customer/ai-chat"
+  },
+  {
+    "category": "Extra Services",
+    "method": "GET",
+    "path": "/api/customer/ai-chat/history",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: GET /api/customer/ai-chat/history"
+  },
+  {
+    "category": "Extra Services",
+    "method": "GET",
+    "path": "/api/services",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: GET /api/services"
+  },
+  {
+    "category": "Extra Services",
+    "method": "GET",
+    "path": "/api/customer/services/featured",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: GET /api/customer/services/featured"
+  },
+  {
+    "category": "Extra Services",
+    "method": "GET",
+    "path": "/api/bookings/my-bookings",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: GET /api/bookings/my-bookings"
+  },
+  {
+    "category": "Extra Services",
+    "method": "GET",
+    "path": "/api/customer/referral",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: GET /api/customer/referral"
+  },
+  {
+    "category": "Extra Services",
+    "method": "GET",
+    "path": "/api/customer/faqs",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: GET /api/customer/faqs"
+  },
+  {
+    "category": "Extra Services",
+    "method": "GET",
+    "path": "/api/public/policies/customer/privacy_policy",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: GET /api/public/policies/customer/privacy_policy"
+  },
+  {
+    "category": "Extra Services",
+    "method": "GET",
+    "path": "/api/public/policies/customer/terms_and_conditions",
+    "status": 404,
+    "state": "NOT_DEPLOYED_404",
+    "body": "Route not found: GET /api/public/policies/customer/terms_and_conditions"
+  }
+]

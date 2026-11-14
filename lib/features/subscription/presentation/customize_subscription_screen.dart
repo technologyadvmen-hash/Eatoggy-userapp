@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sizer/sizer.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/models.dart';
-import '../../../core/network/app_repository.dart';
+import '../../../core/constants/app_routes.dart';
 
 class CustomizeSubscriptionScreen extends StatefulWidget {
   final SubscriptionPlan plan;
@@ -45,9 +45,9 @@ class _CustomizeSubscriptionScreenState extends State<CustomizeSubscriptionScree
             },
             child: Container(
               decoration: BoxDecoration(
-                color: const Color(0xFF191714),
+                color: AppColors.surface,
                 shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFF1E1C18), width: 1.5),
+                border: Border.all(color: AppColors.border, width: 1.5),
               ),
               child: const Icon(Icons.arrow_back, color: AppColors.primaryText, size: 18),
             ),
@@ -62,7 +62,7 @@ class _CustomizeSubscriptionScreenState extends State<CustomizeSubscriptionScree
                 fontFamily: 'Georgia',
                 fontSize: 18.sp,
                 fontWeight: FontWeight.w700,
-                color: AppColors.primaryGold,
+                color: AppColors.primary,
               ),
             ),
             const SizedBox(height: 2),
@@ -80,9 +80,10 @@ class _CustomizeSubscriptionScreenState extends State<CustomizeSubscriptionScree
         elevation: 0,
         titleSpacing: 0,
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -92,7 +93,7 @@ class _CustomizeSubscriptionScreenState extends State<CustomizeSubscriptionScree
                 style: TextStyle(
                   fontSize: 15.sp,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.primaryGold,
+                  color: AppColors.primary,
                 ),
               ),
               const SizedBox(height: 12),
@@ -123,10 +124,10 @@ class _CustomizeSubscriptionScreenState extends State<CustomizeSubscriptionScree
                       width: 12.w,
                       height: 12.w,
                       decoration: BoxDecoration(
-                        color: isSelected ? AppColors.primaryGold : Colors.transparent,
+                        color: isSelected ? AppColors.primary : Colors.transparent,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: isSelected ? Colors.transparent : const Color(0xFF1E1C18),
+                          color: isSelected ? Colors.transparent : AppColors.surface,
                           width: 1.5,
                         ),
                       ),
@@ -136,7 +137,7 @@ class _CustomizeSubscriptionScreenState extends State<CustomizeSubscriptionScree
                           style: TextStyle(
                             fontSize: 14.sp,
                             fontWeight: FontWeight.bold,
-                            color: isSelected ? const Color(0xFF1A0E00) : AppColors.primaryText,
+                            color: isSelected ? Colors.white : AppColors.primaryText,
                           ),
                         ),
                       ),
@@ -152,7 +153,7 @@ class _CustomizeSubscriptionScreenState extends State<CustomizeSubscriptionScree
                 style: TextStyle(
                   fontSize: 15.sp,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.primaryGold,
+                  color: AppColors.primary,
                 ),
               ),
               const SizedBox(height: 12),
@@ -181,7 +182,7 @@ class _CustomizeSubscriptionScreenState extends State<CustomizeSubscriptionScree
                 style: TextStyle(
                   fontSize: 15.sp,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.primaryGold,
+                  color: AppColors.primary,
                 ),
               ),
               const SizedBox(height: 12),
@@ -196,11 +197,11 @@ class _CustomizeSubscriptionScreenState extends State<CustomizeSubscriptionScree
                   fillColor: AppColors.surface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF1E1C18)),
+                    borderSide: const BorderSide(color: AppColors.border),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.primaryGold, width: 1.2),
+                    borderSide: const BorderSide(color: AppColors.primary, width: 1.2),
                   ),
                   contentPadding: const EdgeInsets.all(16),
                 ),
@@ -215,13 +216,26 @@ class _CustomizeSubscriptionScreenState extends State<CustomizeSubscriptionScree
                         setState(() {
                           _isProcessing = true;
                         });
-                        final repo = MockAppRepository();
-                        final sub = await repo.subscribeToPlan(widget.plan, _selectedDays, 1);
+                        final sub = Subscription(
+                          id: widget.plan.id,
+                          plan: widget.plan,
+                          status: 'Active',
+                          remainingMeals: widget.plan.totalMeals,
+                          nextDelivery: DateTime.now().add(const Duration(days: 1)),
+                          schedule: List.generate(
+                            widget.plan.totalMeals,
+                            (i) => SubscriptionCalendarDay(
+                              occurrenceId: 'occ_${widget.plan.id}_$i',
+                              date: DateTime.now().add(Duration(days: i + 1)),
+                              status: 'Upcoming',
+                            ),
+                          ),
+                        );
                         if (mounted) {
                           setState(() {
                             _isProcessing = false;
                           });
-                          context.push('/subscription-calendar', extra: sub);
+                          context.push(AppRoutes.subscriptionCheckout, extra: sub);
                         }
                       },
                 child: Container(
@@ -247,18 +261,19 @@ class _CustomizeSubscriptionScreenState extends State<CustomizeSubscriptionScree
                             style: TextStyle(
                               fontSize: 15.sp,
                               fontWeight: FontWeight.w700,
-                              color: const Color(0xFF1A0E00),
+                              color: Colors.white,
                             ),
                           ),
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 48),
             ],
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildTimeSlotCard({required String title, required String deliveryTime}) {
@@ -271,7 +286,7 @@ class _CustomizeSubscriptionScreenState extends State<CustomizeSubscriptionScree
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? AppColors.primaryGold : const Color(0xFF1E1C18),
+            color: isSelected ? AppColors.primary : AppColors.surface,
             width: 1.5,
           ),
         ),

@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:sizer/sizer.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/models.dart';
+import '../data/models/order_review_request.dart';
+import '../data/repositories/review_repository.dart';
 
 class WriteReviewScreen extends StatefulWidget {
   final Order order;
@@ -20,6 +22,8 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
   final TextEditingController _feedbackController = TextEditingController();
   int _charCount = 0;
   final List<String> _photos = []; // Holds mock URLs of added photos
+  bool _isSubmitting = false;
+  final ReviewRepository _reviewRepository = ReviewRepositoryImpl();
 
   @override
   void initState() {
@@ -104,7 +108,7 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF1E1C18), width: 1.0),
+                  border: Border.all(color: AppColors.border, width: 1.0),
                 ),
                 child: Row(
                   children: [
@@ -160,7 +164,7 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
                       style: TextStyle(
                         fontSize: 15.sp,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.primaryGold,
+                        color: AppColors.primary,
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -180,7 +184,7 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF1E1C18), width: 1.0),
+                  border: Border.all(color: AppColors.border, width: 1.0),
                 ),
                 child: Column(
                   children: [
@@ -230,7 +234,7 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
                 style: TextStyle(
                   fontSize: 15.sp,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.primaryGold,
+                  color: AppColors.primary,
                 ),
               ),
               const SizedBox(height: 12),
@@ -247,11 +251,11 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
                   fillColor: AppColors.surface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF1E1C18)),
+                    borderSide: const BorderSide(color: AppColors.border),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.primaryGold, width: 1.2),
+                    borderSide: const BorderSide(color: AppColors.primary, width: 1.2),
                   ),
                   contentPadding: const EdgeInsets.all(16),
                 ),
@@ -281,7 +285,7 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
                 style: TextStyle(
                   fontSize: 15.sp,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.primaryGold,
+                  color: AppColors.primary,
                 ),
               ),
               const SizedBox(height: 12),
@@ -297,7 +301,7 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
                         color: AppColors.surface,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: AppColors.primaryGold,
+                          color: AppColors.primary,
                           style: BorderStyle.solid,
                           width: 1.0,
                         ),
@@ -305,11 +309,11 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.camera_alt_outlined, color: AppColors.primaryGold, size: 24),
+                          const Icon(Icons.camera_alt_outlined, color: AppColors.primary, size: 24),
                           const SizedBox(height: 4),
                           Text(
                             'Add Photo',
-                            style: TextStyle(fontSize: 14.sp, color: AppColors.primaryGold),
+                            style: TextStyle(fontSize: 14.sp, color: AppColors.primary),
                           ),
                         ],
                       ),
@@ -330,7 +334,7 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
                                 margin: const EdgeInsets.only(right: 12),
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: const Color(0xFF1E1C18)),
+                                  border: Border.all(color: AppColors.border),
                                 ),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(10),
@@ -354,7 +358,7 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
                                       shape: BoxShape.circle,
                                     ),
                                     padding: const EdgeInsets.all(2),
-                                    child: const Icon(Icons.close, color: Colors.white, size: 16),
+                                    child: const Icon(Icons.close, color: AppColors.primaryText, size: 16),
                                   ),
                                 ),
                               ),
@@ -370,58 +374,108 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
 
               // ── Submit Review Button ──────────────────────────────────────
               GestureDetector(
-                onTap: () {
-                  if (_overallRating == 0) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please select an overall rating'),
-                        backgroundColor: AppColors.error,
-                      ),
-                    );
-                    return;
-                  }
-                  if (_charCount < 20) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Detailed feedback must be at least 20 characters'),
-                        backgroundColor: AppColors.error,
-                      ),
-                    );
-                    return;
-                  }
+                onTap: _isSubmitting
+                    ? null
+                    : () async {
+                        if (_overallRating == 0) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please select an overall rating'),
+                              backgroundColor: AppColors.error,
+                            ),
+                          );
+                          return;
+                        }
+                        if (_charCount < 5) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please write a brief feedback (at least 5 characters)'),
+                              backgroundColor: AppColors.error,
+                            ),
+                          );
+                          return;
+                        }
 
-                  // Successful submission feedback
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Thank you! Your royal review has been submitted.'),
-                      backgroundColor: AppColors.success,
-                    ),
-                  );
-                  context.pop();
-                },
+                        setState(() {
+                          _isSubmitting = true;
+                        });
+
+                        final messenger = ScaffoldMessenger.of(context);
+                        final router = GoRouter.of(context);
+
+                        try {
+                          final request = OrderReviewRequest(
+                            rating: _overallRating,
+                            foodRating: _foodQualityRating > 0 ? _foodQualityRating : _overallRating,
+                            deliveryRating: _deliveryPackagingRating > 0 ? _deliveryPackagingRating : _overallRating,
+                            comment: _feedbackController.text.trim(),
+                            images: _photos,
+                          );
+
+                          final response = await _reviewRepository.submitOrderReview(
+                            orderId: widget.order.id,
+                            request: request,
+                          );
+
+                          if (!mounted) return;
+
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(response.message.isNotEmpty
+                                  ? response.message
+                                  : 'Thank you! Your royal review has been submitted.'),
+                              backgroundColor: AppColors.success,
+                            ),
+                          );
+                          router.pop(true);
+                        } catch (e) {
+                          if (!mounted) return;
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text('Failed to submit review: ${e.toString()}'),
+                              backgroundColor: AppColors.error,
+                            ),
+                          );
+                        } finally {
+                          if (mounted) {
+                            setState(() {
+                              _isSubmitting = false;
+                            });
+                          }
+                        }
+                      },
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   decoration: BoxDecoration(
-                    gradient: AppColors.goldGradient,
+                    color: AppColors.primary,
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.primaryGold.withOpacity(0.2),
+                        color: AppColors.primary.withValues(alpha: 0.2),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       )
                     ],
                   ),
                   child: Center(
-                    child: Text(
-                      'Submit Review',
-                      style: TextStyle(
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF1A0E00),
-                      ),
-                    ),
+                    child: _isSubmitting
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : Text(
+                            'Submit Review',
+                            style: TextStyle(
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
                   ),
                 ),
               ),
@@ -459,7 +513,7 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Icon(
               isFilled ? Icons.star : Icons.star_border,
-              color: isFilled ? AppColors.primaryGold : AppColors.muted,
+              color: isFilled ? AppColors.primary : AppColors.muted,
               size: size,
             ),
           ),

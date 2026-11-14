@@ -5,22 +5,23 @@ import 'app_colors.dart';
 class AppTheme {
   AppTheme._();
 
-  static ThemeData get darkTheme {
+  static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.dark,
+      brightness: Brightness.light,
       scaffoldBackgroundColor: AppColors.background,
-      colorScheme: const ColorScheme.dark(
+      dividerColor: AppColors.border,
+      colorScheme: const ColorScheme.light(
         primary: AppColors.primaryGold,
         secondary: AppColors.lightGold,
         background: AppColors.background,
         surface: AppColors.surface,
         error: AppColors.error,
-        onPrimary: AppColors.background,
-        onSecondary: AppColors.background,
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
         onBackground: AppColors.primaryText,
         onSurface: AppColors.primaryText,
-        onError: AppColors.primaryText,
+        onError: Colors.white,
       ),
       textTheme: TextTheme(
         displayLarge: GoogleFonts.outfit(
@@ -74,6 +75,18 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.primaryText,
+        contentTextStyle: const TextStyle(
+          color: Colors.white,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
         ),
       ),
     );

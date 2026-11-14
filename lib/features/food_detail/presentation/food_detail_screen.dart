@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sizer/sizer.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/widgets/custom_widgets.dart';
+import '../../../widgets/custom_widgets.dart';
 import '../../../shared/models/models.dart';
 import '../../cart/cubit/cart_cubit.dart';
 
@@ -41,19 +41,34 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                 // 1. Food Image Header
                 Stack(
                   children: [
-                    widget.food.imageUrl.startsWith('assets/')
-                        ? Image.asset(
-                            widget.food.imageUrl,
-                            height: 35.h,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                          )
-                        : Image.network(
-                            widget.food.imageUrl,
-                            height: 35.h,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                          ),
+                    Hero(
+                      tag: 'food_dish_${widget.food.id}',
+                      child: widget.food.imageUrl.startsWith('assets/')
+                          ? Image.asset(
+                              widget.food.imageUrl,
+                              height: 35.h,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Image.asset(
+                                widget.food.fallbackImageAsset,
+                                height: 35.h,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                          : Image.network(
+                              widget.food.imageUrl,
+                              height: 35.h,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Image.asset(
+                                widget.food.fallbackImageAsset,
+                                height: 35.h,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                    ),
                     // Gradient overlay at top for back/share icon readability
                     Positioned.fill(
                       child: Container(
@@ -110,7 +125,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                             child: Text(
                               widget.food.name,
                               style: GoogleFonts.playfairDisplay(
-                                color: const Color(0xFFF1CC8A),
+                                color: AppColors.primaryText,
                                 fontSize: 22.sp,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -120,28 +135,60 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                           Text(
                             '₹${widget.food.price.toInt()}',
                             style: GoogleFonts.outfit(
-                              color: const Color(0xFFD9A24F),
+                              color: AppColors.primary,
                               fontSize: 22.sp,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                         ],
                       ),
-                      SizedBox(height: 1.5.h),
+                      SizedBox(height: 1.2.h),
+
+                      // Restaurant Info Row
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.storefront_outlined,
+                            color: AppColors.primary,
+                            size: 15.sp,
+                          ),
+                          SizedBox(width: 1.5.w),
+                          Text(
+                            widget.food.formattedRestaurantName,
+                            style: GoogleFonts.inter(
+                              color: AppColors.primary,
+                              fontSize: 13.5.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Flexible(
+                            child: Text(
+                              ' • ${widget.food.formattedRestaurantDetails}',
+                              style: GoogleFonts.inter(
+                                color: AppColors.secondaryText,
+                                fontSize: 12.sp,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 1.2.h),
                       
                       // Star Rating & Royal Reviews Row
                       Row(
                         children: [
                           Icon(
                             Icons.star,
-                            color: const Color(0xFFD9A24F),
+                            color: AppColors.primary,
                             size: 16.sp,
                           ),
                           SizedBox(width: 1.5.w),
                           Text(
                             '${widget.food.rating} (2.4K royal ratings)',
                             style: GoogleFonts.inter(
-                              color: const Color(0xFFD9A24F),
+                              color: AppColors.primary,
                               fontSize: 12.sp,
                               fontWeight: FontWeight.w600,
                             ),
@@ -150,36 +197,73 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                       ),
                       SizedBox(height: 2.h),
                       
-                      // Hygiene Verified Badge
-                      Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0x1F4CAF50),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: const Color(0x3B4CAF50),
-                            width: 1,
-                          ),
-                        ),
-                        padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 0.5.h),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.security,
-                              color: const Color(0xFF4CAF50),
-                              size: 12.sp,
-                            ),
-                            SizedBox(width: 1.5.w),
-                            Text(
-                              'Hygiene Verified',
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFF4CAF50),
-                                fontSize: 10.sp,
-                                fontWeight: FontWeight.w600,
+                      // Badges Row
+                      Row(
+                        children: [
+                          // Imperial Badge
+                          Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: AppColors.primary.withValues(alpha: 0.3),
+                                width: 1,
                               ),
                             ),
-                          ],
-                        ),
+                            padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 0.5.h),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.workspace_premium,
+                                  color: AppColors.primary,
+                                  size: 12.sp,
+                                ),
+                                SizedBox(width: 1.5.w),
+                                Text(
+                                  'Imperial',
+                                  style: GoogleFonts.inter(
+                                    color: AppColors.primary,
+                                    fontSize: 12.5.sp,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(width: 2.w),
+                          // Hygiene Verified Badge
+                          Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0x1F4CAF50),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: const Color(0x3B4CAF50),
+                                width: 1,
+                              ),
+                            ),
+                            padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 0.5.h),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.security,
+                                  color: const Color(0xFF4CAF50),
+                                  size: 12.sp,
+                                ),
+                                SizedBox(width: 1.5.w),
+                                Text(
+                                  'Hygiene Verified',
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFF4CAF50),
+                                    fontSize: 12.5.sp,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                       SizedBox(height: 2.5.h),
                       
@@ -187,14 +271,14 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                       Text(
                         widget.food.description,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF8E8A82),
+                          color: AppColors.secondaryText,
                           fontSize: 14.5.sp, // Font size strictly between 14.sp to 18.sp
                           height: 1.45,
                         ),
                       ),
                       SizedBox(height: 3.h),
                       
-                      const Divider(color: Color(0xFF2C2721), height: 1),
+                      const Divider(color: AppColors.border, height: 1),
                       SizedBox(height: 2.h),
                       
                       // 3. Nutrition & Ingredients Expandable Section
@@ -213,14 +297,14 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                               Text(
                                 'Nutrition & Ingredients',
                                 style: GoogleFonts.inter(
-                                  color: Colors.white,
+                                  color: AppColors.primaryText,
                                   fontSize: 15.sp, // Strictly between 14.sp to 18.sp
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                               Icon(
                                 _nutritionExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                                color: Colors.white,
+                                color: AppColors.primaryText,
                                 size: 20.sp,
                               ),
                             ],
@@ -235,9 +319,9 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                           width: double.infinity,
                           padding: EdgeInsets.all(4.w),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF161614),
+                            color: AppColors.surface,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFF2C2721)),
+                            border: Border.all(color: AppColors.border),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -245,7 +329,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                               Text(
                                 widget.food.nutrition,
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFF8E8A82),
+                                  color: AppColors.secondaryText,
                                   fontSize: 14.sp,
                                 ),
                               ),
@@ -253,7 +337,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                               Text(
                                 'Ingredients:',
                                 style: GoogleFonts.inter(
-                                  color: Colors.white,
+                                  color: AppColors.primaryText,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 14.sp,
                                 ),
@@ -264,11 +348,11 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                                 runSpacing: 1.h,
                                 children: widget.food.ingredients.map((ing) {
                                   return Chip(
-                                    backgroundColor: const Color(0xFF2C2721),
+                                    backgroundColor: AppColors.surface,
                                     label: Text(
                                       ing,
                                       style: GoogleFonts.inter(
-                                        color: const Color(0xFFD9D7D4),
+                                        color: AppColors.secondaryText,
                                         fontSize: 12.sp,
                                       ),
                                     ),
@@ -287,8 +371,8 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                       Text(
                         'ACCOMPANYING ADD-ONS',
                         style: GoogleFonts.outfit(
-                          color: const Color(0xFFD9A24F),
-                          fontSize: 11.sp,
+                          color: AppColors.primary,
+                          fontSize: 13.sp,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 1.5,
                         ),
@@ -332,10 +416,10 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
             top: 4.h,
             left: 5.w,
             child: CircleAvatar(
-              backgroundColor: const Color(0xAA11110F),
+              backgroundColor: const Color(0xAAFFFFFF),
               radius: 20.sp,
               child: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                icon: const Icon(Icons.arrow_back, color: AppColors.primaryText),
                 onPressed: () => Navigator.of(context).pop(),
               ),
             ),
@@ -346,10 +430,10 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
             top: 4.h,
             right: 5.w,
             child: CircleAvatar(
-              backgroundColor: const Color(0xAA11110F),
+              backgroundColor: const Color(0xAAFFFFFF),
               radius: 20.sp,
               child: IconButton(
-                icon: const Icon(Icons.ios_share, color: Colors.white),
+                icon: const Icon(Icons.ios_share, color: AppColors.primaryText),
                 onPressed: () {
                   // Share actions
                 },
@@ -363,15 +447,15 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
             left: 0,
             right: 0,
             child: Container(
-              color: const Color(0xFF11110F),
+              color: AppColors.surface,
               child: SafeArea(
                 top: false,
                 child: Container(
                   padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 2.h),
                   decoration: const BoxDecoration(
-                    color: Color(0xFF11110F),
+                    color: AppColors.surface,
                     border: Border(
-                      top: BorderSide(color: Color(0xFF1E1C18), width: 1.0),
+                      top: BorderSide(color: AppColors.border, width: 1.0),
                     ),
                   ),
                   child: Row(
@@ -379,15 +463,15 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                       // Capsule Quantity Selector
                       Container(
                         decoration: BoxDecoration(
-                          color: const Color(0xFF161614),
+                          color: AppColors.surface,
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0xFF2C2721)),
+                          border: Border.all(color: AppColors.border),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
-                              icon: Icon(Icons.remove, color: const Color(0xFFD9A24F), size: 16.sp),
+                              icon: Icon(Icons.remove, color: AppColors.primary, size: 16.sp),
                               onPressed: () {
                                 if (_qty > 1) {
                                   setState(() {
@@ -399,13 +483,13 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                             Text(
                               '$_qty',
                               style: GoogleFonts.inter(
-                                color: Colors.white,
+                                color: AppColors.primaryText,
                                 fontSize: 15.sp, // Strictly between 14.sp to 18.sp
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             IconButton(
-                              icon: Icon(Icons.add, color: const Color(0xFFD9A24F), size: 16.sp),
+                              icon: Icon(Icons.add, color: AppColors.primary, size: 16.sp),
                               onPressed: () {
                                 setState(() {
                                   _qty++;
@@ -422,15 +506,14 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                         child: PrimaryGoldButton(
                           text: 'Add to Cart • ₹${totalPrice.toInt()}',
                           onPressed: () {
-                            for (int i = 0; i < _qty; i++) {
-                              context.read<CartCubit>().addToCart(widget.food);
-                            }
+                            final int qty = _qty < 1 ? 1 : _qty;
+                            context.read<CartCubit>().addToCart(widget.food, quantity: qty);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                backgroundColor: const Color(0xFF1E1C1A),
+                                backgroundColor: AppColors.surface,
                                 content: Text(
-                                  '${widget.food.name} (x$_qty) Added to Box!',
-                                  style: const TextStyle(color: Colors.white),
+                                  '${widget.food.name} (x$qty) Added to Box!',
+                                  style: const TextStyle(color: AppColors.primaryText),
                                 ),
                               ),
                             );
@@ -473,16 +556,16 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
-                      color: isChecked ? const Color(0xFFD9A24F) : const Color(0xFF8E8A82),
+                      color: isChecked ? AppColors.primary : AppColors.secondaryText,
                       width: 1.5,
                     ),
-                    color: isChecked ? const Color(0xFFD9A24F) : Colors.transparent,
+                    color: isChecked ? AppColors.primary : Colors.transparent,
                   ),
                   child: isChecked
                       ? Icon(
                           Icons.check,
                           size: 12.sp,
-                          color: Colors.black,
+                          color: Colors.white,
                         )
                       : null,
                 ),
@@ -490,7 +573,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                 Text(
                   title,
                   style: GoogleFonts.inter(
-                    color: isChecked ? Colors.white : const Color(0xFF8E8A82),
+                    color: isChecked ? AppColors.primaryText : AppColors.secondaryText,
                     fontSize: 14.sp, // Font size strictly between 14.sp to 18.sp
                     fontWeight: isChecked ? FontWeight.w600 : FontWeight.normal,
                   ),
@@ -500,7 +583,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
             Text(
               '+ ₹$price',
               style: GoogleFonts.outfit(
-                color: isChecked ? const Color(0xFFD9A24F) : const Color(0xFF8E8A82),
+                color: isChecked ? AppColors.primary : AppColors.secondaryText,
                 fontSize: 14.sp, // Font size strictly between 14.sp to 18.sp
                 fontWeight: isChecked ? FontWeight.bold : FontWeight.normal,
               ),

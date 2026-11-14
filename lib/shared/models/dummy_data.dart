@@ -19,7 +19,7 @@ class DummyData {
       name: 'Premium Shahi Paneer Thali',
       description: 'Rich cottage cheese cubes cooked in light spiced cashew cream gravy, accompanied by 2 Butter Roti, Jeera Rice, and Dal Makhani.',
       price: 189.0,
-      imageUrl: 'https://images.unsplash.com/photo-1631452180519-c014fe946bc7?q=80&w=400&auto=format&fit=crop',
+      imageUrl: 'https://images.unsplash.com/photo-1631515243349-e0cb75fb8d3a?q=80&w=600&auto=format&fit=crop', // High-res Shahi Paneer
       category: 'North Indian',
       rating: 4.8,
       isVeg: true,
@@ -31,7 +31,7 @@ class DummyData {
       name: 'Ghar Ki Homely Dal Khichdi',
       description: 'Comforting yellow lentils and rice tempered with pure cow ghee, cumin, and hing. Served with roasted papad and home pickle.',
       price: 129.0,
-      imageUrl: 'https://images.unsplash.com/photo-1601050690597-df056fb4ce78?q=80&w=400&auto=format&fit=crop',
+      imageUrl: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?q=80&w=600&auto=format&fit=crop', // High-res Dal Khichdi
       category: 'Tiffin',
       rating: 4.9,
       isVeg: true,
@@ -67,7 +67,7 @@ class DummyData {
       name: 'Butter Chicken Homestyle Thali',
       description: 'Succulent chicken pieces cooked in tomato gravy, with homestyle spices. Served with 2 Phulka, Rice, and cucumber salad.',
       price: 249.0,
-      imageUrl: 'https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?q=80&w=400&auto=format&fit=crop',
+      imageUrl: 'https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?q=80&w=600&auto=format&fit=crop', // High-res Butter Chicken
       category: 'North Indian',
       rating: 4.8,
       isVeg: false,
